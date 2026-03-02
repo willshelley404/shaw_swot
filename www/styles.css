@@ -1,0 +1,367 @@
+/* ── Shaw Industries CEO Strategy Portal ─────────────────────────────────── */
+/* www/styles.css  |  Dark theme & component overrides                        */
+
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+html, body {
+  background-color: #080b10 !important;
+  color: #d4cfc8;
+  font-family: 'Barlow', 'Trebuchet MS', sans-serif;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: 'Playfair Display', 'Palatino Linotype', serif;
+  font-weight: normal;
+}
+
+.tab-content-pad { padding: 24px 0; }
+
+/* ── Login ─────────────────────────────────────────────────────────────────── */
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #080b10;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(200,168,75,0.05) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 20%, rgba(61,143,196,0.04) 0%, transparent 55%);
+}
+
+.login-box {
+  background: #0e1219;
+  border: 1px solid #1e2530;
+  border-radius: 6px;
+  padding: 48px 40px;
+  width: 380px;
+}
+
+.login-label {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #5a6070;
+  display: block;
+  margin-bottom: 6px;
+  font-family: 'Barlow', sans-serif;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+.btn-accent,
+.btn-accent:hover,
+.btn-accent:focus,
+.btn-accent:active {
+  background: #c8a84b !important;
+  color: #080b10 !important;
+  border: none !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase;
+  font-size: 12px !important;
+  padding: 11px !important;
+  border-radius: 3px !important;
+  width: 100%;
+}
+
+/* ── Top Bar ───────────────────────────────────────────────────────────────── */
+.topbar {
+  background: #0e1219;
+  border-bottom: 1px solid #1e2530;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+}
+
+.topbar > div { width: 100%; }
+
+/* ── Division Banner ───────────────────────────────────────────────────────── */
+.division-banner {
+  background: linear-gradient(90deg, rgba(200,168,75,0.05), transparent 70%);
+  border-bottom: 1px solid #1e2530;
+  padding: 8px 24px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Cards ─────────────────────────────────────────────────────────────────── */
+.card {
+  background: #0e1219 !important;
+  border: 1px solid #1e2530 !important;
+  border-radius: 4px !important;
+  color: #d4cfc8;
+}
+
+.card-body { padding: 20px !important; }
+
+.card-header {
+  background: transparent !important;
+  border-bottom: 1px solid #1e2530 !important;
+  padding: 12px 20px !important;
+}
+
+.card-header-sm {
+  font-size: 11px !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  color: #c8a84b !important;
+  font-family: 'Barlow', sans-serif !important;
+}
+
+.card-header-accent {
+  font-size: 11px !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase !important;
+  color: #c8a84b !important;
+}
+
+.card-accent-border { border-left: 3px solid #c8a84b !important; }
+
+/* ── KPI Row ───────────────────────────────────────────────────────────────── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 1300px) { .kpi-row { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 800px)  { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+
+.kpi-card {
+  background: #0e1219;
+  border: 1px solid #1e2530;
+  border-radius: 4px;
+  padding: 16px 18px;
+}
+
+.kpi-label {
+  font-size: 10px;
+  color: #5a6070;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  font-family: 'Barlow', sans-serif;
+  line-height: 1.3;
+}
+
+.kpi-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 24px;
+  line-height: 1.1;
+  color: #d4cfc8;
+}
+
+.kpi-delta {
+  font-size: 11px;
+  margin-top: 4px;
+  font-family: 'Barlow', sans-serif;
+}
+
+.kpi-sub {
+  font-size: 10px;
+  color: #5a6070;
+  margin-top: 6px;
+  border-top: 1px solid #1e2530;
+  padding-top: 5px;
+  font-family: 'Barlow', sans-serif;
+  font-style: italic;
+}
+
+/* ── Section Headers ───────────────────────────────────────────────────────── */
+.section-header {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  font-weight: normal;
+  color: #d4cfc8;
+  margin: 0;
+}
+
+.section-subheader {
+  font-size: 13px;
+  color: #5a6070;
+  margin: 0;
+  line-height: 1.65;
+  font-family: 'Barlow', sans-serif;
+}
+
+.divider-accent {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(200,168,75,0.5), transparent);
+  margin: 12px 0 20px;
+  border: none;
+}
+
+/* ── Badges ────────────────────────────────────────────────────────────────── */
+.badge-accent, .badge-blue, .badge-green, .badge-red, .badge-amber, .badge-muted {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-family: 'Barlow', sans-serif;
+  white-space: nowrap;
+  display: inline-block;
+  line-height: 1.6;
+}
+
+.badge-accent { background:rgba(200,168,75,0.15); color:#c8a84b; border:1px solid rgba(200,168,75,0.3); }
+.badge-blue   { background:rgba(61,143,196,0.15);  color:#3d8fc4; border:1px solid rgba(61,143,196,0.3); }
+.badge-green  { background:rgba(61,187,122,0.15);  color:#3dbb7a; border:1px solid rgba(61,187,122,0.3); }
+.badge-red    { background:rgba(217,95,95,0.15);   color:#d95f5f; border:1px solid rgba(217,95,95,0.3); }
+.badge-amber  { background:rgba(232,160,48,0.15);  color:#e8a030; border:1px solid rgba(232,160,48,0.3); }
+.badge-muted  { background:rgba(90,96,112,0.15);   color:#5a6070; border:1px solid rgba(90,96,112,0.25); }
+
+/* ── Insight Boxes ─────────────────────────────────────────────────────────── */
+.insight-box {
+  padding: 12px 16px;
+  border-radius: 3px;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #d4cfc8;
+}
+
+.insight-accent { background:rgba(200,168,75,0.07); border-left:3px solid #c8a84b; }
+.insight-green  { background:rgba(61,187,122,0.07); border-left:3px solid #3dbb7a; }
+.insight-red    { background:rgba(217,95,95,0.07);  border-left:3px solid #d95f5f; }
+.insight-amber  { background:rgba(232,160,48,0.07); border-left:3px solid #e8a030; }
+
+/* ── Narrative Grid ────────────────────────────────────────────────────────── */
+.narrative-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 20px;
+  padding: 4px 0;
+}
+
+@media (max-width: 900px) { .narrative-grid { grid-template-columns: 1fr 1fr; } }
+
+.narrative-item { padding: 0; }
+
+.narrative-label {
+  font-size: 10px;
+  color: #c8a84b;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  font-family: 'Barlow', sans-serif;
+}
+
+/* ── Navigation Tabs ───────────────────────────────────────────────────────── */
+.nav-tabs {
+  border-bottom: 1px solid #1e2530 !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  gap: 0;
+}
+
+.nav-tabs .nav-link {
+  color: #5a6070 !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  font-size: 12px !important;
+  letter-spacing: 0.05em;
+  padding: 12px 18px !important;
+  white-space: nowrap;
+  transition: color 0.15s;
+  background: transparent !important;
+  font-family: 'Barlow', sans-serif;
+}
+
+.nav-tabs .nav-link:hover {
+  color: #9a9488 !important;
+  border-bottom-color: #2e3a48 !important;
+}
+
+.nav-tabs .nav-link.active {
+  color: #c8a84b !important;
+  border-bottom: 2px solid #c8a84b !important;
+  background: transparent !important;
+}
+
+.tab-content { padding-top: 0; }
+
+/* ── Form Controls ─────────────────────────────────────────────────────────── */
+.form-control {
+  background: #0e1219 !important;
+  border: 1px solid #1e2530 !important;
+  color: #d4cfc8 !important;
+  border-radius: 3px !important;
+  font-family: 'Barlow', sans-serif !important;
+}
+
+.form-control:focus {
+  border-color: #c8a84b !important;
+  box-shadow: 0 0 0 2px rgba(200,168,75,0.12) !important;
+  outline: none !important;
+}
+
+.form-control::placeholder { color: #3a3d45 !important; }
+
+/* ── DataTables ────────────────────────────────────────────────────────────── */
+table.dataTable {
+  background: transparent !important;
+  color: #d4cfc8 !important;
+  width: 100% !important;
+}
+
+table.dataTable thead th {
+  background: #0e1219 !important;
+  color: #5a6070 !important;
+  font-size: 10px !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  border-bottom: 1px solid #1e2530 !important;
+  border-top: none !important;
+  font-weight: 400 !important;
+  padding: 11px 14px !important;
+  font-family: 'Barlow', sans-serif !important;
+}
+
+table.dataTable tbody td {
+  border-color: #1e2530 !important;
+  font-size: 12px !important;
+  padding: 11px 14px !important;
+  vertical-align: middle !important;
+  font-family: 'Barlow', sans-serif;
+}
+
+table.dataTable tbody tr.odd  { background: transparent !important; }
+table.dataTable tbody tr.even { background: rgba(255,255,255,0.015) !important; }
+table.dataTable tbody tr:hover { background: rgba(200,168,75,0.04) !important; }
+
+table.dataTable.no-footer { border-bottom: 1px solid #1e2530 !important; }
+
+.dataTables_wrapper { color: #5a6070; font-family: 'Barlow', sans-serif; }
+.dataTables_wrapper .dataTables_info { font-size: 11px; color: #5a6070 !important; }
+.dataTables_wrapper .dataTables_paginate { display: none; }
+
+/* ── Scrollbars ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0e1219; }
+::-webkit-scrollbar-thumb { background: #2e3a48; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3e4a58; }
+
+/* ── Portal Footer ─────────────────────────────────────────────────────────── */
+.portal-footer {
+  padding: 18px 24px;
+  border-top: 1px solid #1e2530;
+  margin-top: 40px;
+  background: #080b10;
+}
+
+/* ── Plotly ────────────────────────────────────────────────────────────────── */
+.plotly .modebar { display: none !important; }
+
+/* ── Progress ──────────────────────────────────────────────────────────────── */
+.progress { background: #1e2530 !important; height: 4px !important; border-radius: 2px; }
+.progress-bar { background: #c8a84b !important; }
+.shiny-busy-indicator-bar { background: #c8a84b !important; }
+
+/* ── Shiny output loading ──────────────────────────────────────────────────── */
+.shiny-bound-output.recalculating { opacity: 0.5; }
