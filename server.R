@@ -325,22 +325,37 @@ server <- function(input, output, session) {
       houst_yoy  = yoy_pct(housing_starts),
       constr_yoy = yoy_pct(construction),
       cpi_yoy    = yoy_pct(cpi),
-      # Implied forward 30-yr = FOMC 1-yr projection + 250 bps (historical spread range: 220–280 bps)
       implied_mort_fwd = if ("fed_proj_1yr" %in% names(d) && any(!is.na(d$fed_proj_1yr)))
         fed_proj_1yr + 2.5 else NA_real_
     )
     
     d <- d |> filter(!is.na(shaw_yoy))
     
-    # Guard flag — only add projection traces if FEDTARC1 data was actually fetched
     has_proj     <- "fed_proj_1yr" %in% names(d) && any(!is.na(d$fed_proj_1yr))
     has_mort_fwd <- "implied_mort_fwd" %in% names(d) && any(!is.na(d$implied_mort_fwd))
     
-    last_fred_date <- suppressWarnings(max(d$date[!is.na(d$housing_starts)], na.rm = TRUE))
+    # Last confirmed FRED observation for the primary demand series
+    last_fred_date <- suppressWarnings(
+      max(d$date[!is.na(d$housing_starts)], na.rm = TRUE)
+    )
     if (is.infinite(last_fred_date)) last_fred_date <- max(d$date)
     
+    # Actual data up to last FRED date
     d_actual <- d |> filter(date <= last_fred_date)
-    d_proj   <- d |> filter(date >= last_fred_date)
+    
+    # ── Forward projection — explicitly generated, not sliced from existing data ──
+    # Problem with slicing: last_fred_date is usually the most recent row, so
+    # filter(date >= last_fred_date) returns 0–1 rows — Plotly renders nothing.
+    # Fix: generate 12 months of future dates and taper shaw_yoy toward the
+    # base scenario annual growth rate (~5% for 2026E per SCENARIOS$base).
+    last_actual_yoy <- tail(d_actual$shaw_yoy[!is.na(d_actual$shaw_yoy)], 1)
+    target_yoy      <- 5.0   # base case ~5% — matches SCENARIOS$base 2026E growth
+    proj_dates      <- seq.Date(last_fred_date, by = "month", length.out = 13)
+    proj_yoy        <- c(last_actual_yoy,   # overlap point for visual continuity
+                         seq(last_actual_yoy, target_yoy, length.out = 12))
+    
+    d_proj <- tibble(date = proj_dates, shaw_yoy = proj_yoy)
+    # ─────────────────────────────────────────────────────────────────────────────
     
     # Shared axis definitions
     date_xaxis <- list(
@@ -365,7 +380,8 @@ server <- function(input, output, session) {
       
       yax_right_mort <- list(
         title      = list(
-          text = if (has_mort_fwd) "Mortgage Rate %: actual (solid) / FOMC implied fwd (dashed) \u2192"
+          text = if (has_mort_fwd)
+            "Mortgage Rate %: actual (solid) / FOMC implied fwd (dashed) \u2192"
           else "30-Yr Mortgage Rate (%) \u2192",
           font = list(size = 9, color = PAL$amber)
         ),
@@ -382,7 +398,11 @@ server <- function(input, output, session) {
         add_lines(data = d_proj, x = ~date, y = ~shaw_yoy,
                   name = "Shaw Rev Est. YoY (E \u2014 fwd proj.)",
                   line = list(color = PAL$accent, width = 1.8, dash = "dot"),
-                  hovertemplate = "%{x|%b '%y}: %{y:+.1f}% (proj.)<extra>Shaw Rev Est. (E)</extra>") |>
+                  hovertemplate = paste0(
+                    "%{x|%b '%y}: %{y:+.1f}% (proj.)<br>",
+                    "<i>Tapered to base case ~5% \u2014 not a FRED series</i>",
+                    "<extra>Shaw Rev Est. (E)</extra>"
+                  )) |>
         add_lines(data = d, x = ~date, y = ~houst_yoy,
                   name = "Housing Starts YoY (HOUST)",
                   line = list(color = PAL$blue, width = 2),
@@ -393,7 +413,6 @@ server <- function(input, output, session) {
                   line = list(color = PAL$amber, width = 2),
                   hovertemplate = "%{x|%b '%y}: %{y:.2f}%<extra>MORTGAGE30US level</extra>")
       
-      # FOMC implied forward mortgage — only if FEDTARC1 fetched successfully
       if (has_mort_fwd)
         p <- p |>
         add_lines(data = d, x = ~date, y = ~implied_mort_fwd,
@@ -431,7 +450,11 @@ server <- function(input, output, session) {
         add_lines(data = d_proj, x = ~date, y = ~shaw_yoy,
                   name = "Shaw Rev Est. YoY (E \u2014 fwd proj.)",
                   line = list(color = PAL$accent, width = 1.8, dash = "dot"),
-                  hovertemplate = "%{x|%b '%y}: %{y:+.1f}% (proj.)<extra>Shaw Rev Est. (E)</extra>") |>
+                  hovertemplate = paste0(
+                    "%{x|%b '%y}: %{y:+.1f}% (proj.)<br>",
+                    "<i>Tapered to base case ~5% \u2014 not a FRED series</i>",
+                    "<extra>Shaw Rev Est. (E)</extra>"
+                  )) |>
         add_lines(data = d, x = ~date, y = ~constr_yoy,
                   name = "Construction Spend YoY (TTLCONS)",
                   line = list(color = PAL$blue, width = 2),
@@ -479,7 +502,11 @@ server <- function(input, output, session) {
         add_lines(data = d_proj, x = ~date, y = ~shaw_yoy,
                   name = "Shaw Rev Est. YoY (E \u2014 fwd proj.)",
                   line = list(color = PAL$accent, width = 1.8, dash = "dot"),
-                  hovertemplate = "%{x|%b '%y}: %{y:+.1f}% (proj.)<extra>Shaw Rev Est. (E)</extra>") |>
+                  hovertemplate = paste0(
+                    "%{x|%b '%y}: %{y:+.1f}% (proj.)<br>",
+                    "<i>Tapered to base case ~5% \u2014 not a FRED series</i>",
+                    "<extra>Shaw Rev Est. (E)</extra>"
+                  )) |>
         add_lines(data = d, x = ~date, y = ~constr_yoy,
                   name = "Construction Spend YoY (TTLCONS)",
                   line = list(color = PAL$green, width = 2),
@@ -574,9 +601,9 @@ server <- function(input, output, session) {
   output$exec_rev_note <- renderUI({
     data_note_ui(paste0(
       "Shaw revenue (\u2605) is an analyst estimate \u2014 Shaw Industries does not report standalone financials. ",
-      "YoY % change = (current month / same month prior year \u2212 1) \u00d7 100. ",
-      "First 12 months excluded (no prior-year base). ",
-      "Dashed line labeled (E) = forward projection beyond last confirmed FRED observation. ",
+      "YoY % = (current / prior year \u2212 1) \u00d7 100. First 12 months excluded (no prior-year base). ",
+      "Dashed line (E) = forward projection: tapers from last actual YoY toward base-case ~5% ",
+      "over 12 months \u2014 not a FRED series, for directional context only. ",
       "Live FRED auto-updates through most recent available month when FRED_API_KEY is set."
     ))
   })
