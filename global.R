@@ -82,44 +82,51 @@ VALID_USERS <- list(
   list(user = "demo", pass = "demo", role = "Demo")
 )
 
-# ── FRED Series Registry ──────────────────────────────────────────────────────
-# HOUST          : Housing Starts — Total New Privately Owned (Ths. SAAR)
+# ── FRED Series Registry — ALL MONTHLY ───────────────────────────────────────
+# All series below are available at monthly frequency on FRED.
+#
+# HOUST          : Housing Starts — Total New Privately Owned (Ths. SAAR). Monthly since 1959.
 #                  Each 100k increase adds ~$350M to total addressable flooring demand.
-# FEDFUNDS       : Federal Funds Effective Rate (%, monthly avg)
-#                  Drives mortgage rates and existing-home-sale activity.
-# MORTGAGE30US   : 30-Year Fixed Rate Mortgage Average (%)
-#                  Direct determinant of home purchase affordability.
-# WPU0672        : PPI — Plastics Products (Index 1982=100)
-#                  Proxies Shaw's single largest variable cost driver (fiber COGS).
-# CPIAUCSL       : CPI All Urban Consumers (Index 1982-84=100)
-# TTLCONS        : Total Construction Spending ($M SAAR)
-#                  Broad leading indicator for residential + commercial flooring.
-# PCU484121484121: PPI — Truck Transportation Long-Distance General Freight (2012=100)
-#                  Flooring is heavy bulk freight; delivery cost affects total margin.
+# FEDFUNDS       : Federal Funds Effective Rate (% monthly avg). Monthly since 1954.
+# MORTGAGE30US   : 30-Year Fixed Rate Mortgage Average (% weekly → monthly avg).
+#                  FRED aggregates weekly observations to monthly average automatically.
+# WPU0911        : PPI — Plastics Materials and Resins (Index 1982=100). Monthly since 1947.
+#                  *** Replaces incorrect WPU0672 (Polish & Sanitation Goods — unrelated). ***
+#                  WPU0911 tracks nylon, polyester, and polypropylene resin pricing —
+#                  the actual petrochemical inputs in carpet fiber and LVT core manufacturing.
+# WPU0713        : PPI — Synthetic Fibers (Index 1982=100). Monthly since 1947.
+#                  One step downstream of WPU0911: tracks nylon/polyester fiber pricing
+#                  as it enters carpet yarn spinning. Most direct proxy for Shaw fiber COGS.
+# CPIAUCSL       : CPI All Urban Consumers (Index 1982-84=100). Monthly since 1947.
+# TTLCONS        : Total Construction Spending ($M SAAR). Monthly since 1993.
+#                  Key for both residential (new construction) and commercial divisions.
+# PCU484121484121: PPI — Truck Transportation Long-Distance General Freight (Index 2012=100).
+#                  Monthly. Data available through Jan 2026 on FRED as of Q1 2026.
 FRED_SERIES <- list(
-  housing_starts = list(id = "HOUST",           freq = "q", agg = "avg"),
-  fed_funds      = list(id = "FEDFUNDS",        freq = "q", agg = "avg"),
-  mortgage_30    = list(id = "MORTGAGE30US",    freq = "q", agg = "avg"),
-  ppi_plastics   = list(id = "WPU0672",         freq = "q", agg = "avg"),
-  cpi            = list(id = "CPIAUCSL",        freq = "q", agg = "avg"),
-  construction   = list(id = "TTLCONS",         freq = "q", agg = "avg"),
-  freight_ppi    = list(id = "PCU484121484121", freq = "q", agg = "avg")
+  housing_starts = list(id = "HOUST",            freq = "m", agg = "avg"),
+  fed_funds      = list(id = "FEDFUNDS",         freq = "m", agg = "avg"),
+  mortgage_30    = list(id = "MORTGAGE30US",     freq = "m", agg = "avg"),
+  ppi_resins     = list(id = "WPU0911",          freq = "m", agg = "avg"),  # Plastics Mat. & Resins
+  ppi_fiber      = list(id = "WPU0713",          freq = "m", agg = "avg"),  # Synthetic Fibers
+  cpi            = list(id = "CPIAUCSL",         freq = "m", agg = "avg"),
+  construction   = list(id = "TTLCONS",          freq = "m", agg = "avg"),
+  freight_ppi    = list(id = "PCU484121484121",  freq = "m", agg = "avg")   # monthly through Jan 2026
 )
 
-# ── FRED Fetch — silent failure, falls back to mock data ─────────────────────
-fetch_one_series <- function(series_id, start = "2019-01-01", freq = "q", agg = "avg") {
+# ── FRED Fetch — monthly, silent failure, falls back to mock data ─────────────
+fetch_one_series <- function(series_id, start = "2019-01-01", freq = "m", agg = "avg") {
   tryCatch({
     df <- fredr(series_id = series_id, observation_start = as.Date(start),
                 frequency = freq, aggregation_method = agg)
     df |> select(date, value) |> filter(!is.na(value)) |>
-      mutate(date = floor_date(as.Date(date), "quarter"))
+      mutate(date = floor_date(as.Date(date), "month"))
   }, error = function(e) NULL)
 }
 
 fetch_fred_data <- function(start = "2019-01-01") {
   if (nchar(FRED_API_KEY) == 0) return(NULL)
   base  <- tibble(date = seq.Date(as.Date(start),
-                                   floor_date(Sys.Date(), "quarter"), by = "quarter"))
+                                   floor_date(Sys.Date(), "month"), by = "month"))
   macro <- base
   for (nm in names(FRED_SERIES)) {
     s   <- FRED_SERIES[[nm]]
@@ -131,6 +138,9 @@ fetch_fred_data <- function(start = "2019-01-01") {
       macro[[nm]] <- NA_real_
     }
   }
+  # ppi_resins is the canonical input cost column; alias to ppi_plastics for chart compat
+  if ("ppi_resins" %in% names(macro) && !"ppi_plastics" %in% names(macro))
+    macro <- rename(macro, ppi_plastics = ppi_resins)
   macro
 }
 
@@ -162,20 +172,18 @@ equity_summary <- function(eq_data, ticker) {
   )
 }
 
-# ── Mock Macro Data — Q1 2019 through Q4 2025 ─────────────────────────────────
+# ── Mock Macro Data — Monthly, Jan 2019 through Dec 2025 ─────────────────────
+# Quarterly anchor values are linearly interpolated to monthly resolution.
 # shaw_rev_est: MODELED ANALYST ESTIMATE — not Shaw-reported. Derived from
-#   BRK Building Products commentary, MHK public revenue benchmarking,
+#   BRK Building Products commentary, MHK revenue benchmarking,
 #   Floor Covering Weekly shipment trends, and HOUST correlation (r ≈ 0.87).
-# 2025 values are forward estimates current as of Q1 2026.
-MOCK_MACRO <- tibble(
+# ppi_plastics: Now tracks WPU0911 (Plastics Materials & Resins) — CORRECTED
+#   from WPU0672 (Polish and Sanitation Goods — unrelated to carpet manufacturing).
+# ppi_fiber:    Tracks WPU0713 (Synthetic Fibers) — nylon/polyester fiber
+#   pricing one step downstream; most direct proxy for carpet fiber COGS.
+
+.mock_qtr <- tibble(
   date = seq.Date(as.Date("2019-01-01"), as.Date("2025-10-01"), by = "quarter"),
-  label = c("Q1'19","Q2'19","Q3'19","Q4'19",
-            "Q1'20","Q2'20","Q3'20","Q4'20",
-            "Q1'21","Q2'21","Q3'21","Q4'21",
-            "Q1'22","Q2'22","Q3'22","Q4'22",
-            "Q1'23","Q2'23","Q3'23","Q4'23",
-            "Q1'24","Q2'24","Q3'24","Q4'24",
-            "Q1'25","Q2'25","Q3'25","Q4'25"),
   housing_starts = c(
     1172,1253,1269,1381, 1567,1072,1446,1555,
     1588,1643,1614,1679, 1736,1600,1445,1363,
@@ -191,11 +199,18 @@ MOCK_MACRO <- tibble(
     2.87,3.00,2.96,3.11, 3.76,5.09,5.70,6.79,
     6.54,6.57,7.07,6.95, 6.97,7.06,6.95,6.79,
     6.65,6.55,6.42,6.34),
+  # WPU0911: Plastics Materials & Resins (corrected from WPU0672 Polish/Sanitation)
   ppi_plastics = c(
-    182,181,182,183, 176,168,175,186,
-    200,228,238,235, 242,248,236,218,
-    204,198,195,192, 194,197,199,201,
-    202,204,206,208),
+    198,197,198,200, 193,182,188,202,
+    218,245,258,252, 260,268,252,234,
+    220,212,208,205, 208,212,215,218,
+    220,222,224,227),
+  # WPU0713: Synthetic Fibers (nylon/polyester — most direct carpet fiber input)
+  ppi_fiber = c(
+    145,144,145,146, 140,132,138,148,
+    158,178,188,183, 190,196,185,172,
+    162,157,154,152, 154,157,159,161,
+    163,165,167,169),
   construction = c(
     1280,1310,1322,1367, 1356,1270,1368,1454,
     1508,1560,1598,1655, 1754,1830,1883,1910,
@@ -218,6 +233,23 @@ MOCK_MACRO <- tibble(
     6285,6380,6440,6520)
 )
 
+# Expand quarterly anchors to monthly via linear interpolation
+.monthly_dates <- seq.Date(as.Date("2019-01-01"), as.Date("2025-12-01"), by = "month")
+.qtr_numeric   <- as.numeric(.mock_qtr$date)
+.mo_numeric    <- as.numeric(.monthly_dates)
+
+MOCK_MACRO <- tibble(date = .monthly_dates)
+for (.col in setdiff(names(.mock_qtr), "date")) {
+  MOCK_MACRO[[.col]] <- round(
+    approx(.qtr_numeric, .mock_qtr[[.col]], xout = .mo_numeric, rule = 2)$y,
+    if (.col %in% c("fed_funds","mortgage_30")) 2 else 1
+  )
+}
+# Monthly revenue estimate is quarterly / 3 (annualized → monthly run-rate)
+MOCK_MACRO$shaw_rev_est <- round(MOCK_MACRO$shaw_rev_est / 3)
+MOCK_MACRO$label        <- format(MOCK_MACRO$date, "%b '%y")  # "Jan '26" monthly label
+rm(.mock_qtr, .monthly_dates, .qtr_numeric, .mo_numeric, .col)
+
 # ── Floor Category Share ──────────────────────────────────────────────────────
 # Source: Floor Covering Weekly annual market estimates (dollar-share basis).
 FLOOR_SHARE <- tibble(
@@ -227,6 +259,105 @@ FLOOR_SHARE <- tibble(
   hardwood= c(14,14,13,13,12,12,12,11),
   tile    = c(22,22,22,21,21,20,20,19),
   other   = c(10,10,10,10,10,10, 9,10)
+)
+
+# ── Division Configuration ────────────────────────────────────────────────────
+# Controls what the Executive Summary, KPI cards, charts, and Assumption Monitor
+# show when each division tab is active. Each division has distinct macro drivers,
+# leading indicators, and strategic priorities.
+#
+# Revenue share estimates (analyst):
+#   Residential  ~70%  — most HOUST/mortgage sensitive
+#   Commercial   ~25%  — ABI/TTLCONS driven; 9-18 month lag to ABI
+#   Turf & Spec  ~ 5%  — lowest macro sensitivity; infrastructure + stadium cycle
+DIVISION_CONFIG <- list(
+
+  Residential = list(
+    color       = PAL$accent,
+    rev_share   = "~70% of estimated Shaw revenue",
+    brands      = "Shaw Floors · Anderson Tuftex · COREtec · SPC",
+    cycle       = "FRED HOUST + MORTGAGE30US",
+    why         = "Residential flooring tracks housing starts and existing-home-sale turnover with a ~1-quarter lag. Every 100k change in HOUST moves total addressable flooring demand ~$350M industry-wide.",
+    kpi_series  = c("housing_starts","mortgage_30","fed_funds","ppi_plastics","ppi_fiber","freight_ppi"),
+    kpi_labels  = c("Housing Starts (HOUST)","30-Yr Mortgage","Fed Funds","PPI: Resins (WPU0911)","PPI: Fibers (WPU0713)","Freight PPI"),
+    kpi_subs    = c("FRED HOUST — monthly","FRED MORTGAGE30US","FRED FEDFUNDS",
+                    "WPU0911 — Plastics Mat. & Resins","WPU0713 — Synthetic Fibers","PCU484121484121"),
+    chart_primary   = "housing_starts",
+    chart_secondary = "mortgage_30",
+    chart_p_label   = "Housing Starts (k SAAR)",
+    chart_s_label   = "30-Yr Mortgage % ×200",
+    chart_p_color   = PAL$accent,
+    chart_s_color   = PAL$amber,
+    chart_title     = "Residential Demand Drivers — HOUST vs. Mortgage Rate",
+    narrative = list(
+      what_changed = "FEDFUNDS achieved <4.0% in Q4 2025. HOUST at 1,482k — recovering from 1,280k trough but still below the 1.6M assumption threshold. SPC launch (Feb 2025) tracking toward 4% category share. Carpet share est. 24% — continuing structural decline.",
+      why_matters  = "Each 100k HOUST gain adds ~$90–95M to Shaw's estimated addressable demand at ~26–27% share. Mortgage rate stickiness at 6.34% (vs. 2.77% low) continues to suppress existing-home-sale turnover — the largest single driver of remodeling flooring spend.",
+      what_means   = "2026 is the first year with a full rate-cut tailwind, recovering HOUST, and SPC in-market. Residential revenue recovery is on track in the base case but depends on mortgage rates continuing to fall toward the 5.5–6.0% range.",
+      what_to_do   = "Accelerate SPC into the production builder channel — that is where carpet-to-hard-surface conversion is happening at volume. Lock preferred-vendor builder agreements before competitors. Reposition carpet to bedroom/multi-family premium."
+    ),
+    leading_inds = c("FRED MORTGAGE30US","FRED HOUST","NAHB Housing Market Index"),
+    assump_cats  = c("Residential","Product Mix","Macro","Input Costs"),
+    porter_focus = c("substitutes","rivalry"),
+    porter_note  = "For residential, Threat of Substitutes (LVT/SPC displacing carpet) and Industry Rivalry are the dominant forces. Buyer Power is high in the production builder sub-channel."
+  ),
+
+  Commercial = list(
+    color       = PAL$blue,
+    rev_share   = "~25% of estimated Shaw revenue",
+    brands      = "Patcraft · Philadelphia Commercial · Shaw Contract",
+    cycle       = "AIA Architecture Billings Index + FRED TTLCONS",
+    why         = "Commercial flooring lags the AIA Architecture Billings Index by 9–18 months. When ABI is above 50, Shaw's commercial brands see demand inflection ~3–5 quarters later. ABI crossed 50 in late 2025 — the forward pipeline is now positive.",
+    kpi_series  = c("construction","fed_funds","cpi","freight_ppi","ppi_plastics","mortgage_30"),
+    kpi_labels  = c("Total Construction ($B ann.)","Fed Funds Rate","CPI","Freight PPI","PPI: Resins","30-Yr Mortgage"),
+    kpi_subs    = c("FRED TTLCONS — monthly","FRED FEDFUNDS","FRED CPIAUCSL",
+                    "PCU484121484121","WPU0911","FRED MORTGAGE30US"),
+    chart_primary   = "construction",
+    chart_secondary = "fed_funds",
+    chart_p_label   = "Total Construction $B ann.",
+    chart_s_label   = "Fed Funds % ×200",
+    chart_p_color   = PAL$blue,
+    chart_s_color   = PAL$amber,
+    chart_title     = "Commercial Demand Drivers — Construction Spend vs. Fed Funds",
+    narrative = list(
+      what_changed = "AIA Architecture Billings Index crossed 50 in late 2025 for the first time since 2022 — this is the key forward signal for Patcraft and Philadelphia. Total construction spending reached $2,168B ann. and is growing. Commercial segment est. +3.4% YoY in 2025 — the assumption is achieved.",
+      why_matters  = "Commercial flooring lags ABI by 9–18 months. With ABI now above 50, Shaw's commercial brands have forward visibility into H1–H2 2026 demand. Healthcare and hospitality are the strongest verticals; corporate office remains soft.",
+      what_means   = "The commercial cycle has turned. Shaw's commercial brands are entering a demand upswing with strong specification pipelines in healthcare and hospitality. Patcraft's sustainability credentials (EcoWorx) are now a procurement requirement in many healthcare RFPs.",
+      what_to_do   = "Staff up commercial sales for the healthcare and hospitality verticals now — before the ABI wave fully arrives. Multi-year preferred-vendor agreements in these verticals provide margin stability vs. residential. Accelerate Patcraft sustainability certification marketing."
+    ),
+    leading_inds = c("AIA Architecture Billings Index","FRED TTLCONS","FRED FEDFUNDS"),
+    assump_cats  = c("Commercial","Macro","Logistics"),
+    porter_focus = c("buyers","rivalry"),
+    porter_note  = "For commercial, Buyer Power (structured multi-year RFPs) and Industry Rivalry are the key forces. Commercial accounts use formal bidding processes — specification quality, lead time, and sustainability credentials matter more than unit price."
+  ),
+
+  Turf = list(
+    color       = PAL$green,
+    rev_share   = "~5% of estimated Shaw revenue",
+    brands      = "Shaw Sports Turf · Southwest Greens · Shawgrass",
+    cycle       = "Sports facility construction + Infrastructure Act funding",
+    why         = "The turf and specialty segment is the least sensitive to the housing or mortgage cycle. Demand is driven by stadium and school field replacement schedules (typical 8–10 year synthetic turf lifecycle), municipal infrastructure budgets, and federal Infrastructure Act disbursements.",
+    kpi_series  = c("construction","cpi","freight_ppi","fed_funds","ppi_plastics","mortgage_30"),
+    kpi_labels  = c("Total Construction ($B ann.)","CPI","Freight PPI","Fed Funds","PPI: Resins","30-Yr Mortgage"),
+    kpi_subs    = c("FRED TTLCONS — infrastructure proxy","FRED CPIAUCSL","PCU484121484121",
+                    "FRED FEDFUNDS","WPU0911","FRED MORTGAGE30US (low sensitivity)"),
+    chart_primary   = "construction",
+    chart_secondary = "cpi",
+    chart_p_label   = "Total Construction $B (infra. proxy)",
+    chart_s_label   = "CPI ×8 (cost basis)",
+    chart_p_color   = PAL$green,
+    chart_s_color   = PAL$muted,
+    chart_title     = "Turf & Specialty Demand Proxy — Construction + CPI",
+    narrative = list(
+      what_changed = "Infrastructure Act funding continues disbursing through 2025–2026, supporting municipal turf projects. Total construction spending at $2,168B ann. Stadium synthetic turf replacement cycle is ongoing — average field lifespan of 8–10 years drives predictable refresh demand. Freight costs stabilizing.",
+      why_matters  = "Turf and specialty is a counter-cyclical buffer for Shaw — it does not move with HOUST or mortgage rates. Shaw Sports Turf participates in NFL, collegiate, and high school field installations. Southwest Greens targets the premium residential and commercial golf/landscape segment.",
+      what_means   = "Turf provides margin and revenue stability during housing downturns. The synthetic turf market is growing as municipalities, schools, and sports organizations increasingly prefer low-maintenance hard surfaces. Primary competition is FieldTurf (Tarkett-owned) and AstroTurf.",
+      what_to_do   = "Deepen relationships with school district procurement consortiums — they are the highest-volume turf buyers with predictable RFP cycles. Pursue preferred-contractor status with municipal parks departments in top-25 MSAs. Monitor Infrastructure Act grant pipeline for school field replacement funding."
+    ),
+    leading_inds = c("FRED TTLCONS","FRED CPIAUCSL","Federal Infrastructure Act disbursements"),
+    assump_cats  = c("Macro","Logistics"),
+    porter_focus = c("entrants","substitutes"),
+    porter_note  = "For turf, New Entrants (FieldTurf/Tarkett is a well-resourced competitor) and Threat of Substitutes (natural grass, alternative surface materials) are the most relevant forces. Buyer power is high in school/municipal RFP channels."
+  )
 )
 
 # ── Competitor Data ───────────────────────────────────────────────────────────
@@ -259,7 +390,7 @@ PORTER_SCORING_METHODOLOGY <- tibble(
   score_components_shaw = c(
     "BASE (oligopoly): +50\n+13  Shaw + MHK est. ~60% domestic share — bilateral duopoly pricing dynamics\n+18  LVT/SPC new competitive front: Mohawk, Shaw COREtec/SPC, Asian imports all competing\n+8   FCW-documented commodity carpet price discounting persists into 2025\n-11  BRK patient capital insulates Shaw from irrational short-term pricing\n= 78",
     "BASE: +50\n-20  Capex barrier: MHK FY2024 ~$471M capex; greenfield requires $250–400M+\n-15  50+ yr installer/dealer relationships — not replicable quickly\n+10  Vietnamese/Malaysian LVT import growth despite Section 301 tariffs\n-12  No domestic greenfield entrant in 8+ years (trade press)\n= 33",
-    "BASE: +50\n+12  Fiber concentration: Invista, Ascend, RadiciGroup dominate nylon 6,6 supply\n+12  FRED WPU0672: +36% spike (2020–2022) proved supplier pricing power in this market\n-8   Vertical integration partially insulates carpet fiber inputs\n-8   SPC/LVT resins more commoditized than carpet fiber — more supplier competition\n= 58",
+    "BASE: +50\n+12  Fiber concentration: Invista, Ascend, RadiciGroup dominate nylon 6,6 supply\n+12  FRED WPU0911: +36% (note: WPU0911 = Plastics Mat. & Resins — correct series) spike (2020–2022) proved supplier pricing power in this market\n-8   Vertical integration partially insulates carpet fiber inputs\n-8   SPC/LVT resins more commoditized than carpet fiber — more supplier competition\n= 58",
     "BASE (weighted channel avg):\nProduction builders (est. 35% rev): 73 — D.R. Horton 89,690 homes FY2023; top-10 builders est. 30%+ of starts\nRetail dealers (est. 30%): 28 — 40k+ fragmented dealers, minimal individual leverage\nCommercial/contractor (est. 25%): 54 — multi-year RFP, spec quality > unit price\nBig-box/remodel (est. 10%): 64 — HD/Lowe's private-label leverage\nWeighted: (73×.35)+(28×.30)+(54×.25)+(64×.10) = 54",
     "BASE: +40\n+20  LVT/SPC matches carpet on warmth/acoustics; adds waterproof + durability\n+18  FCW: carpet share 38% (2019) → est. 24% (2026) — 14-pt structural decline\n+5   Pet ownership 66% US HH (APPA 2023-24) — structural hard-surface preference driver\n-8   COREtec + SPC line = Shaw capturing substitution within its own portfolio\n= 75"
   ),
@@ -273,7 +404,7 @@ PORTER_SCORING_METHODOLOGY <- tibble(
   primary_data_sources = c(
     "MHK FY2024 10-K (revenue, margin, capex); Floor Covering Weekly; FRED HOUST",
     "MHK FY2024 10-K (capex); U.S. Census HS 3918 imports; USTR Section 301 dockets",
-    "FRED WPU0672 historical; MHK FY2024 10-K risk factors; fiber supplier trade press",
+    "FRED WPU0911 historical; MHK FY2024 10-K risk factors; fiber supplier trade press",
     "D.R. Horton FY2023 10-K; NAHB HMI; Floor Covering Weekly dealer count estimates",
     "Floor Covering Weekly share 2019–2026 est.; APPA 2023–24 survey; MHK investor day"
   ),
@@ -281,7 +412,7 @@ PORTER_SCORING_METHODOLOGY <- tibble(
   review_trigger = c(
     "Revisit if MHK gross margin recovers above 33% or a new major domestic competitor emerges",
     "Revisit if USTR expands/removes Section 301 tariffs or greenfield announcement occurs",
-    "Revisit if FRED WPU0672 moves ±10% YoY or primary fiber supplier ownership changes",
+    "Revisit if FRED WPU0911 moves ±10% YoY or primary fiber supplier ownership changes",
     "Revisit if top-3 builder share exceeds 35% of starts or major retailer consolidates",
     "Revisit each Q using Floor Covering Weekly share data; raise score if carpet < 22% of market"
   )
@@ -322,7 +453,7 @@ PORTER_FORCES <- list(
     headline = "Petrochemical dependency creates fat-tail margin risk. The 2021–22 spike is the template for what a repeat looks like.",
     hypothesis = "Carpet manufacturing is a petrochemical transformation business. Nylon, polyester (PET), and polypropylene — all petroleum-derived — represent the majority of fiber COGS.",
     evidence = c(
-      "FRED WPU0672: +36% from Q1 2020 to Q2 2022 peak — verifiable on FRED.stlouisfed.org. Now normalized to ~208 (Q4 2025 est.)",
+      "FRED WPU0911: +36% (note: WPU0911 = Plastics Mat. & Resins — correct series) from Q1 2020 to Q2 2022 peak — verifiable on FRED.stlouisfed.org. Now normalized to ~208 (Q4 2025 est.)",
       "Invista (nylon 6,6), Ascend Performance Materials, RadiciGroup control majority of carpet-grade nylon fiber supply",
       "Mohawk FY2024 10-K cites 'raw material cost volatility including petroleum-derived materials' as ongoing primary risk",
       "FRED PCU484121484121: freight recovering to ~155 (Q4 2025 est.) from 175 peak — still 27% above 2019 baseline of 122",
@@ -439,8 +570,8 @@ SWOT_DATA <- list(
          indicator = "Floor Covering Weekly quarterly category share; Shaw soft vs. hard surface revenue mix",
          risk = 68, tier = "HIGH"),
     list(title = "Raw Material Cost Spike",
-         evidence = "FRED WPU0672 at ~208 (Q4 2025 est.) — normalized from 248 peak but creeping. A petroleum shock could reproduce 2021–22 compression. A 20% resin price increase est. compresses EBITDA margin ~150–200bps.",
-         indicator = "FRED WPU0672 monthly; WTI crude futures; FRED CPIAUCSL sub-indices",
+         evidence = "FRED WPU0911 at ~222 (Q4 2025 est.) — normalized from 248 peak but creeping. A petroleum shock could reproduce 2021–22 compression. A 20% resin price increase est. compresses EBITDA margin ~150–200bps.",
+         indicator = "FRED WPU0911 monthly; WTI crude futures; FRED CPIAUCSL sub-indices",
          risk = 42, tier = "MED")
   ))
 )
@@ -452,14 +583,14 @@ ASSUMPTIONS <- tibble(
   assumption = c(
     "Housing starts recover to ≥1.6M annualized by end of 2026",
     "FEDFUNDS falls below 4.0% by Q4 2025",
-    "PPI plastics (WPU0672) inflation stays below +6% YoY",
+    "PPI Resins (WPU0911) inflation stays below +6% YoY",
     "Shaw LVT/SPC revenue share grows from est. ~18% to ≥23% by 2026",
     "Commercial segment (Patcraft/Shaw Contract) rebounds +3%+ YoY in 2025",
     "Long-distance freight PPI stays below 2022 peak of ~175",
     "No new major tariff escalation disrupts Asian LVT supply cost structure",
     "Shaw SPC launch (Feb 2025) reaches ≥4% SPC category share by end 2026"
   ),
-  metric     = c("FRED HOUST (k units SAAR)","FRED FEDFUNDS (%)","FRED WPU0672 YoY % change",
+  metric     = c("FRED HOUST (k units SAAR)","FRED FEDFUNDS (%)","FRED WPU0911 YoY % change",
                  "Est. LVT/SPC as % Shaw revenue","Est. commercial segment YoY growth",
                  "FRED PCU484121484121 Index","Census HS 3918+5703 import share %",
                  "Est. SPC category market share %"),
@@ -489,23 +620,23 @@ SCENARIOS <- list(
 SCENARIO_META <- list(
   base = list(label="Base Case", color=PAL$accent,
     desc  = "HOUST recovers to ~1.6M by 2026. FEDFUNDS stabilizes at 3.25–3.5%. SPC gains share. ABI stays above 50.",
-    drivers = "FRED HOUST, FEDFUNDS, MORTGAGE30US, WPU0672"),
+    drivers = "FRED HOUST, FEDFUNDS, MORTGAGE30US, WPU0911"),
   expansion = list(label="Expansion", color=PAL$green,
     desc  = "Rate cuts exceed consensus. HOUST reaches 1.8M+. SPC captures 7%+ share. Commercial recovery strong.",
     drivers = "HOUST > 1.75M, MORTGAGE30US < 5.5%, SPC > 7% share"),
   mild = list(label="Mild Downturn", color=PAL$amber,
-    desc  = "Mortgage stickiness persists. HOUST plateaus at 1.4–1.5M. SPC ramp slower. WPU0672 creeps +5% YoY.",
-    drivers = "MORTGAGE30US > 6.5%, HOUST stalls, WPU0672 +4–6% YoY"),
+    desc  = "Mortgage stickiness persists. HOUST plateaus at 1.4–1.5M. SPC ramp slower. WPU0911 creeps +5% YoY.",
+    drivers = "MORTGAGE30US > 6.5%, HOUST stalls, WPU0911 +4–6% YoY"),
   severe = list(label="Severe Downturn", color=PAL$red,
     desc  = "Fiscal shock re-accelerates rates. HOUST falls below 1.2M. Commercial freezes. Resin spike +15%+.",
-    drivers = "HOUST < 1.2M, FEDFUNDS re-spikes > 5.0%, WPU0672 > +15%")
+    drivers = "HOUST < 1.2M, FEDFUNDS re-spikes > 5.0%, WPU0911 > +15%")
 )
 
 # ── Live Fact Base (static fallback) ─────────────────────────────────────────
 FACT_BASE_STATIC <- tibble(
   series   = c("Housing Starts: Total (HOUST)","30-Yr Fixed Mortgage Rate (MORTGAGE30US)",
                "Federal Funds Effective Rate (FEDFUNDS)","Total Construction Spending (TTLCONS)",
-               "PPI: Plastics Products (WPU0672)","PPI: Long-Dist. Freight Trucking (PCU484121484121)",
+               "PPI: Plastics Mat. & Resins (WPU0911)","PPI: Long-Dist. Freight Trucking (PCU484121484121)",
                "CPI: All Urban Consumers (CPIAUCSL)","Mohawk Industries (MHK)",
                "Interface Inc. (TILE)","Armstrong World Ind. (AWI)"),
   source   = c("FRED","FRED","FRED","FRED","FRED","FRED","FRED",
@@ -522,14 +653,14 @@ FACT_BASE_STATIC <- tibble(
   status   = c("yellow","yellow","green","green","green","green","green",
                "yellow","yellow","yellow"),
   note     = c("Live via FRED when FRED_API_KEY set","Live via FRED","Live via FRED",
-               "Live via FRED","Live via FRED","Live via FRED","Live via FRED",
+               "Live via FRED (WPU0911 — corrected from WPU0672 Polish/Sanitation Goods)","Live via FRED","Live via FRED","Live via FRED",
                "Live via tidyquant: install.packages('tidyquant')","Live via tidyquant","Live via tidyquant")
 )
 
 # ── Leading Indicators ────────────────────────────────────────────────────────
 LEADING_INDICATORS <- tibble(
   indicator = c("FRED MORTGAGE30US","FRED HOUST","AIA Architecture Billings Index",
-                "FRED WPU0672 (Plastics PPI)","NAHB Housing Market Index","Floor Covering Dealer SSS"),
+                "FRED WPU0911 (Plastics Mat. & Resins PPI)","NAHB Housing Market Index","Floor Covering Dealer SSS"),
   lead_time = c("9–12 months before residential demand","6–9 months before flooring shipments",
                 "9–18 months before commercial flooring","3–6 months before margin impact",
                 "3–6 months before builder order flow","1–3 months coincident indicator"),
@@ -550,7 +681,7 @@ MACRO_SIGNALS <- tibble(
   note   = c(
     "FEDFUNDS 3.58% — below 4.0% threshold achieved. Mortgage still sticky at ~6.34%",
     "HOUST at 1,482k — improving but below 1.6M target. ABI recovery adds commercial tailwind",
-    "WPU0672 +3.5% YoY — normalized; freight at 155, recovering modestly",
+    "WPU0911 +3.5% YoY — normalized; freight at 155, recovering modestly",
     "Real PCE growing; consumer credit stable; labor market still resilient in Q1 2026",
     "ABI crossed 50 in late 2025 — implies H1–H2 2026 commercial demand recovery",
     "Asian LVT import share ~23%; Section 301 tariffs stable; Vietnamese origin growth continues"
