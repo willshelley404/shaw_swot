@@ -189,6 +189,23 @@ ui <- fluidPage(
                                                   card_header(uiOutput("exec_secondary_chart_title"), class = "card-header-sm"),
                                                   plotlyOutput("exec_input_costs", height = "240px"),
                                                   uiOutput("exec_cost_insight")
+                                                ),
+                                                # ── Add this card block in the Executive tab, after the two line charts ──────
+                                                card(
+                                                  card_header(
+                                                    div(
+                                                      style = "display:flex; align-items:center; gap:10px;",
+                                                      "U.S. Flooring Market Structure \u2014 Marimekko (2026E)",
+                                                      tags$span(class = "badge-accent", "Mekko"),
+                                                      tags$span(
+                                                        style = "font-size:10px; color:#5a6070; font-weight:normal;",
+                                                        "Width = market size ($B) \u2022 Height = competitive share within category"
+                                                      )
+                                                    ),
+                                                    class = "card-header-sm"
+                                                  ),
+                                                  plotlyOutput("exec_mekko", height = "320px"),
+                                                  uiOutput("exec_mekko_note")
                                                 )
                                  ),
                                  tags$br(),

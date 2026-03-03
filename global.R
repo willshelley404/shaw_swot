@@ -14,6 +14,7 @@ suppressPackageStartupMessages({
   library(shinyjs)
   library(scales)
   library(htmltools)
+  library(tidyquant)
   if (requireNamespace("tidyquant", quietly = TRUE)) {
     library(tidyquant)
     TIDYQUANT_AVAILABLE <- TRUE
@@ -145,7 +146,7 @@ fetch_fred_data <- function(start = "2019-01-01") {
 }
 
 # ── Equity Data (tidyquant / Yahoo Finance API) ────────────────────────────
-fetch_equity_data <- function(tickers = c("MHK","TILE","AWI"), lookback_days = 365) {
+fetch_equity_data <- function(tickers = c("MHK","TILE","AWI"), lookback_days = 365 * 3) {
   if (!TIDYQUANT_AVAILABLE) return(NULL)
   start <- Sys.Date() - lookback_days
   out   <- list()
@@ -689,6 +690,64 @@ MACRO_SIGNALS <- tibble(
   status = c("yellow","yellow","green","green","yellow","red")
 )
 
+## Mekko ----
+# ── Mekko / Marimekko Market Structure ─────────────────────────────────────────
+# U.S. Flooring Market — 2026E
+# Column WIDTH  = category dollar size ($B).  Column HEIGHT = competitive share.
+# Sources: Floor Covering Weekly; Catalina Research; MHK FY2023 10-K;
+#          Shaw share = analyst estimate. Total U.S. ~$31B retail (2026E).
+
+MEKKO_DATA <- tibble(
+  category   = c("Carpet",   "LVT / SPC", "Hardwood", "Ceramic Tile", "Other"),
+  market_b   = c(7.4,         11.2,         3.8,        6.5,            2.1),
+  shaw_pct   = c(31,          18,           12,          5,             22),
+  mohawk_pct = c(29,          22,           18,          8,             15),
+  trend      = c("shrinking", "growing",    "stable",   "stable",       "stable"),
+  trend_note = c(
+    "38% to 24% of flooring market (2019\u20132026E). Structural decline driven by LVT/SPC.",
+    "16% to 36% of flooring market (2019\u20132026E). Fastest-growing; Asian import competition intense.",
+    "Stable ~12\u201314% share. Premium positioning; less LVT substitution risk.",
+    "Stable ~20% share. Less substitutable; spec-driven in commercial + kitchen/bath.",
+    "Broadloom contract, area rugs, specialty. Fragmented; no dominant player."
+  )
+)
+
+build_mekko_rects <- function(data) {
+  total_mkt <- sum(data$market_b)
+  out       <- list()
+  x_left    <- 0
+  for (i in seq_len(nrow(data))) {
+    row        <- data[i, ]
+    w          <- row$market_b / total_mkt
+    x0         <- x_left
+    x1         <- x_left + w
+    x_mid      <- (x0 + x1) / 2
+    x_left     <- x1
+    others_pct <- max(0, 100 - row$shaw_pct - row$mohawk_pct)
+    segs <- list(
+      list(player = "Shaw (est.)",   pct = row$shaw_pct,   col = PAL$accent),
+      list(player = "Mohawk (est.)", pct = row$mohawk_pct, col = PAL$blue),
+      list(player = "Others",        pct = others_pct,      col = PAL$muted)
+    )
+    y_bot <- 0
+    for (seg in segs) {
+      y_top <- y_bot + seg$pct
+      out[[length(out) + 1]] <- tibble(
+        x0 = x0, x1 = x1, y0 = y_bot, y1 = y_top,
+        x_mid = x_mid, y_mid = (y_bot + y_top) / 2,
+        category = row$category, player = seg$player,
+        pct = seg$pct, mkt_b = row$market_b,
+        col = seg$col, trend = row$trend, note = row$trend_note
+      )
+      y_bot <- y_top
+    }
+  }
+  bind_rows(out)
+}
+
+MEKKO_RECTS <- build_mekko_rects(MEKKO_DATA)
+
+# UI helpers ----
 # ── UI Helpers ────────────────────────────────────────────────────────────────
 kpi_card <- function(label, value, delta = NULL, delta_color = "#2dba7a", sub = NULL) {
   tags$div(class = "kpi-card",
