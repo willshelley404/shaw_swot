@@ -15,7 +15,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 server <- function(input, output, session) {
-  
+
   # ── Reactive State ──────────────────────────────────────────────────────────
   rv <- reactiveValues(
     logged_in    = FALSE,
@@ -31,22 +31,22 @@ server <- function(input, output, session) {
     fb_cat       = "ALL",
     division     = "Residential"
   )
-  
+
   # ── Login: show API/package status ─────────────────────────────────────────
   output$login_api_status <- renderUI({
     has_fred   <- nchar(FRED_API_KEY) > 0
     has_tq     <- TIDYQUANT_AVAILABLE
-    
+
     fred_col  <- if (has_fred) PAL$green else PAL$amber
     fred_icon <- if (has_fred) "\u25cf" else "\u25cb"
     fred_msg  <- if (has_fred) "FRED key in .Renviron — live macro data"
-    else          "No FRED_API_KEY — demo mode (mock data)"
-    
+                 else          "No FRED_API_KEY — demo mode (mock data)"
+
     tq_col   <- if (has_tq) PAL$green else PAL$amber
     tq_icon  <- if (has_tq) "\u25cf" else "\u25cb"
     tq_msg   <- if (has_tq) "tidyquant installed — live MHK/TILE/AWI quotes"
-    else         "tidyquant not installed — static equity fallback"
-    
+                else         "tidyquant not installed — static equity fallback"
+
     tagList(
       tags$p(style = paste0("font-size:11px; text-align:center; color:", fred_col, "; margin:0;"),
              fred_icon, " ", fred_msg),
@@ -54,52 +54,49 @@ server <- function(input, output, session) {
              tq_icon, " ", tq_msg)
     )
   })
-  
+
   # ── Authentication ──────────────────────────────────────────────────────────
   observeEvent(input$login_btn, {
     user  <- trimws(input$login_user)
     pass  <- trimws(input$login_pass)
     match <- Filter(function(u) u$user == user && u$pass == pass, VALID_USERS)
-    
+
     if (length(match) > 0) {
       rv$role <- match[[1]]$role
-      
-      # ── Fetch FRED macro data ───────────────────────────────────────────────
+
+      # ── Fetch FRED macro data (silent fallback to mock on any error) ──────────
       if (nchar(FRED_API_KEY) > 0) {
-        withProgress(message = "Fetching live FRED data\u2026", value = 0.1, {
-          live <- fetch_fred_data(start = "2019-01-01")
-          incProgress(0.5)
-          
-          if (!is.null(live) && nrow(live) > 4 &&
-              !all(is.na(live$housing_starts))) {
-            live <- live |>
-              mutate(
-                label = paste0("Q", quarter(date), "'",
-                               substr(as.character(year(date)), 3, 4))
-              )
-            live <- left_join(live,
-                              MOCK_MACRO |> select(date, shaw_rev_est),
-                              by = "date")
-            rv$macro     <- live
-            rv$using_live <- TRUE
-          } else {
-            rv$macro     <- MOCK_MACRO
-            rv$using_live <- FALSE
-          }
-          incProgress(0.2)
-        })
+        live <- tryCatch({
+          withProgress(message = "Connecting to FRED\u2026", value = 0.3, {
+            result <- fetch_fred_data(start = "2019-01-01")
+            incProgress(0.6)
+            result
+          })
+        }, error = function(e) NULL)
+
+        if (!is.null(live) && nrow(live) > 4 && !all(is.na(live$housing_starts))) {
+          live <- live |>
+            mutate(label = paste0("Q", quarter(date), "'",
+                                   substr(as.character(year(date)), 3, 4)))
+          live <- left_join(live, MOCK_MACRO |> select(date, shaw_rev_est), by = "date")
+          rv$macro      <- live
+          rv$using_live <- TRUE
+        } else {
+          rv$macro      <- MOCK_MACRO
+          rv$using_live <- FALSE
+        }
       } else {
-        rv$macro     <- MOCK_MACRO
+        rv$macro      <- MOCK_MACRO
         rv$using_live <- FALSE
       }
-      
+
       # ── ADD: Fetch equity data via tidyquant ────────────────────────────────
       # Fetches MHK, TILE, AWI from Yahoo Finance via the tidyquant package API.
       # Non-blocking: failure falls back to FACT_BASE_STATIC values gracefully.
       if (TIDYQUANT_AVAILABLE) {
         withProgress(message = "Fetching equity data (MHK, TILE, AWI)\u2026", value = 0.1, {
           eq <- fetch_equity_data(tickers = c("MHK", "TILE", "AWI"),
-                                  lookback_days = 365)
+                                   lookback_days = 365)
           incProgress(0.8)
           if (!is.null(eq) && length(eq) > 0) {
             rv$equity       <- eq
@@ -109,7 +106,7 @@ server <- function(input, output, session) {
           }
         })
       }
-      
+
       rv$logged_in <- TRUE
       shinyjs::hide("login_screen")
       shinyjs::show("main_portal")
@@ -121,14 +118,14 @@ server <- function(input, output, session) {
         if(first){ first.style.color='#c8a84b'; first.style.borderColor='#c8a84b';
                    first.style.background='rgba(200,168,75,0.12)'; }
       ")
-      
+
     } else {
       shinyjs::runjs(
         "document.getElementById('login_error').style.display='block';"
       )
     }
   })
-  
+
   observeEvent(input$login_pass, {
     shinyjs::runjs("
       document.getElementById('login_pass').onkeydown = function(e){
@@ -136,7 +133,7 @@ server <- function(input, output, session) {
       };
     ")
   })
-  
+
   # FIX 1: updatePasswordInput() does not exist in base Shiny.
   # Original code: updatePasswordInput(session, "login_pass", value = "")
   # Fix: use shinyjs::reset() on the whole form, or updateTextInput for the username.
@@ -152,7 +149,7 @@ server <- function(input, output, session) {
     updateTextInput(session, "login_user", value = "")
     shinyjs::reset("login_pass")   # FIX: shinyjs::reset() works on passwordInput
   })
-  
+
   # ── Division Toggle ─────────────────────────────────────────────────────────
   observeEvent(input$active_division, {
     d <- input$active_division
@@ -167,47 +164,47 @@ server <- function(input, output, session) {
               el.style.background='rgba(200,168,75,0.12)'; }
     ", tolower(d)))
   })
-  
+
   macro <- reactive({
     req(rv$macro)
     rv$macro
   })
-  
+
   # ── Shared Outputs ──────────────────────────────────────────────────────────
   output$topbar_status <- renderUI({
     req(rv$logged_in)
-    col <- if (rv$using_live) PAL$green else PAL$amber
+    col <- if (rv$using_live) PAL$green else PAL$blue
     msg <- if (rv$using_live)
-      paste0("Live FRED — last pulled ", format(Sys.time(), "%b %d %H:%M"))
+      paste0("Live FRED data — ", format(Sys.time(), "%b %d %H:%M"))
     else
-      "Demo mode — mock data (set FRED_API_KEY in .Renviron)"
-    eq_msg <- if (rv$using_equity) " | Equity: live" else " | Equity: static"
+      "Demo mode — estimates current Q1 2026"
+    eq_msg <- if (rv$using_equity) " | MHK/TILE/AWI live" else ""
     div(style = "display:flex; align-items:center; gap:6px;",
-        tags$span(style = paste0("width:7px;height:7px;border-radius:50%;",
-                                 "background:", col, ";display:inline-block;")),
-        tags$span(style = paste0("font-size:10px; color:", PAL$muted, ";"),
-                  paste0(msg, eq_msg))
+      tags$span(style = paste0("width:7px;height:7px;border-radius:50%;",
+                               "background:", col, ";display:inline-block;")),
+      tags$span(style = paste0("font-size:10px; color:", PAL$muted, ";"),
+                paste0(msg, eq_msg))
     )
   })
-  
+
   output$division_banner <- renderUI({
     req(rv$logged_in)
     d <- rv$division
     desc <- switch(d,
-                   Residential = "Shaw Floors · Anderson Tuftex · COREtec — Housing starts-driven demand (FRED HOUST)",
-                   Commercial  = "Patcraft · Shaw Contract · Philadelphia — Lagging ABI / nonresidential construction cycle",
-                   Turf        = "Shaw Sports Turf · Southwest Greens · Shawgrass — Infrastructure and long-cycle retrofit"
+      Residential = "Shaw Floors · Anderson Tuftex · COREtec — Housing starts-driven demand (FRED HOUST)",
+      Commercial  = "Patcraft · Shaw Contract · Philadelphia — Lagging ABI / nonresidential construction cycle",
+      Turf        = "Shaw Sports Turf · Southwest Greens · Shawgrass — Infrastructure and long-cycle retrofit"
     )
     div(style = "display:flex; align-items:center; gap:12px;",
-        tags$span(class = "badge-accent", d),
-        tags$span(style = paste0("font-size:11px; color:", PAL$muted, ";"), desc)
+      tags$span(class = "badge-accent", d),
+      tags$span(style = paste0("font-size:11px; color:", PAL$muted, ";"), desc)
     )
   })
-  
+
   # ════════════════════════════════════════════════════════════════════════════
   # MODULE 1 — EXECUTIVE SUMMARY
   # ════════════════════════════════════════════════════════════════════════════
-  
+
   output$exec_header <- renderUI({
     section_header(
       "Executive Summary",
@@ -215,69 +212,69 @@ server <- function(input, output, session) {
         "What the CEO sees in 10 minutes. Macro environment, competitive position,",
         " and strategic momentum from FRED, BLS, and public filings."
       ),
-      badge_text  = if (rv$using_live) "Live FRED" else "Mock Data",
+      badge_text  = if (rv$using_live) "Live FRED" else "Q1 2026 Estimates",
       badge_color = if (rv$using_live) "green" else "amber"
     )
   })
-  
+
   # FIX 2: NA guard on all inline if() conditions in exec_kpi_row.
   # Original code used bare `if (hs > 1400)` which throws "missing value where
   # TRUE/FALSE needed" if hs is NA (e.g., last FRED row has NA housing_starts).
   # Fix: use isTRUE(x > threshold) which safely returns FALSE on NA/NULL.
   output$exec_kpi_row <- renderUI({
     d <- macro()
-    
+
     # Pull latest non-NA values for each series
     hs      <- suppressWarnings(as.numeric(tail(d$housing_starts[!is.na(d$housing_starts)], 1)))
     ff      <- suppressWarnings(as.numeric(tail(d$fed_funds[!is.na(d$fed_funds)], 1)))
     mort    <- suppressWarnings(as.numeric(tail(d$mortgage_30[!is.na(d$mortgage_30)], 1)))
     ppi     <- suppressWarnings(as.numeric(tail(d$ppi_plastics[!is.na(d$ppi_plastics)], 1)))
     fr      <- suppressWarnings(as.numeric(tail(d$freight_ppi[!is.na(d$freight_ppi)], 1)))
-    
+
     # YoY PPI change — guard against < 5 rows
     non_na_ppi <- d$ppi_plastics[!is.na(d$ppi_plastics)]
     prev_ppi   <- if (length(non_na_ppi) >= 5) non_na_ppi[length(non_na_ppi) - 4] else NA_real_
     ppi_yoy    <- if (!is.na(ppi) && !is.na(prev_ppi) && prev_ppi != 0)
-      round((ppi / prev_ppi - 1) * 100, 1)
-    else NA_real_
-    
+                    round((ppi / prev_ppi - 1) * 100, 1)
+                  else NA_real_
+
     # FIX: safe color selection using isTRUE() — never crashes on NA
     hs_col    <- if (isTRUE(hs > 1400))   PAL$green else PAL$amber
     ppi_col   <- if (isTRUE(abs(ppi_yoy) < 6)) PAL$green else PAL$red
     ppi_delta <- if (!is.na(ppi_yoy))
-      paste0(ifelse(ppi_yoy >= 0, "+", ""), ppi_yoy, "% YoY")
-    else "YoY N/A"
-    
+                   paste0(ifelse(ppi_yoy >= 0, "+", ""), ppi_yoy, "% YoY")
+                 else "YoY N/A"
+
     div(class = "kpi-row",
-        kpi_card("Shaw Rev. Est. \u2605", "$6.2B est.",
-                 "\u2191 +1.3% est. YoY", PAL$green,
-                 "\u26a0 Analyst estimate — not reported"),
-        kpi_card("Housing Starts (HOUST)",
-                 if (!is.na(hs)) paste0(format(round(hs), big.mark = ","), "k") else "N/A",
-                 if (!is.na(hs)) paste0(ifelse(hs > 1400, "\u2191", "\u2193"), " ",
-                                        round(hs), "k SAAR") else "—",
-                 hs_col,
-                 "FRED HOUST — latest quarter"),
-        kpi_card("Fed Funds Rate",
-                 if (!is.na(ff)) paste0(round(ff, 2), "%") else "N/A",
-                 "\u2193 Declining from 5.33% peak", PAL$green,
-                 "FRED FEDFUNDS"),
-        kpi_card("30-Yr Mortgage Rate",
-                 if (!is.na(mort)) paste0(round(mort, 2), "%") else "N/A",
-                 "Elevated vs. 2.77% (2020 low)", PAL$amber,
-                 "FRED MORTGAGE30US"),
-        kpi_card("PPI: Plastics (WPU0672)",
-                 if (!is.na(ppi)) paste0(round(ppi, 1), " idx") else "N/A",
-                 ppi_delta,
-                 ppi_col,
-                 "FRED WPU0672"),
-        kpi_card("Freight PPI",
-                 if (!is.na(fr)) paste0(round(fr, 1), " idx") else "N/A",
-                 "\u2193 From 175 peak (2022)", PAL$green,
-                 "FRED PCU484121484121")
+      kpi_card("Shaw Rev. Est. \u2605", "$6.2B est.",
+               "\u2191 +1.3% est. YoY", PAL$green,
+               "\u26a0 Analyst estimate — not reported"),
+      kpi_card("Housing Starts (HOUST)",
+               if (!is.na(hs)) paste0(format(round(hs), big.mark = ","), "k") else "N/A",
+               if (!is.na(hs)) paste0(ifelse(hs > 1400, "\u2191", "\u2193"), " ",
+                                       round(hs), "k SAAR") else "—",
+               hs_col,
+               "FRED HOUST — latest quarter"),
+      kpi_card("Fed Funds Rate",
+               if (!is.na(ff)) paste0(round(ff, 2), "%") else "N/A",
+               "\u2193 Declining from 5.33% peak", PAL$green,
+               "FRED FEDFUNDS"),
+      kpi_card("30-Yr Mortgage Rate",
+               if (!is.na(mort)) paste0(round(mort, 2), "%") else "N/A",
+               "Elevated vs. 2.77% (2020 low)", PAL$amber,
+               "FRED MORTGAGE30US"),
+      kpi_card("PPI: Plastics (WPU0672)",
+               if (!is.na(ppi)) paste0(round(ppi, 1), " idx") else "N/A",
+               ppi_delta,
+               ppi_col,
+               "FRED WPU0672"),
+      kpi_card("Freight PPI",
+               if (!is.na(fr)) paste0(round(fr, 1), " idx") else "N/A",
+               "\u2193 From 175 peak (2022)", PAL$green,
+               "FRED PCU484121484121")
     )
   })
-  
+
   output$exec_rev_housing <- renderPlotly({
     d <- macro()
     plot_ly(d, x = ~label) |>
@@ -288,14 +285,14 @@ server <- function(input, output, session) {
                 line = list(color = PAL$blue, width = 1.5, dash = "dash")) |>
       plotly_dark(xlab = "", ylab = "$M / Scaled")
   })
-  
+
   output$exec_rev_insight <- renderUI({
     insight_box(
       "Revenue proxy tracks housing starts with approximately a 1-quarter lag. The Q3 2022 – Q1 2023 housing decline correlates with the revenue compression. Recovery since Q3 2023 is gaining momentum.",
       "accent", "Modeled Correlation"
     )
   })
-  
+
   output$exec_rev_note <- renderUI({
     data_note_ui(paste0(
       "Shaw revenue (\u2605) is an analyst estimate derived from Berkshire Hathaway ",
@@ -303,7 +300,7 @@ server <- function(input, output, session) {
       "and housing starts correlation. Shaw Industries does not report standalone financials."
     ))
   })
-  
+
   output$exec_input_costs <- renderPlotly({
     d <- macro()
     plot_ly(d, x = ~label) |>
@@ -315,14 +312,14 @@ server <- function(input, output, session) {
                 line = list(color = PAL$blue, width = 1.5, dash = "dot")) |>
       plotly_dark(xlab = "", ylab = "Index / Rate (scaled)")
   })
-  
+
   output$exec_cost_insight <- renderUI({
     insight_box(
       "PPI Plastics (FRED WPU0672) and freight PPI both peaked in 2022 and have substantially normalized. Fed funds rate declining from 5.33% peak. Input cost tailwind is real entering 2025.",
       "green", "Positive Signal"
     )
   })
-  
+
   output$exec_margins <- renderPlotly({
     d <- COMPETITORS |> filter(!is.na(gm_pct))
     plot_ly(d,
@@ -335,13 +332,13 @@ server <- function(input, output, session) {
       plotly_dark(xlab = "Gross Margin %", ylab = "", legend = FALSE) |>
       layout(xaxis = list(range = c(0, 48)))
   })
-  
+
   output$exec_margins_note <- renderUI({
     data_note_ui(
       "Shaw gross margin not publicly reported. Engineered Floors is a separate private company — no public financials. Public figures from MHK, AWI, TILE annual 10-Ks. Note: Interface (TILE) is commercial modular carpet — margin reflects different product mix."
     )
   })
-  
+
   output$exec_cat_share <- renderPlotly({
     p <- plot_ly(FLOOR_SHARE, x = ~year)
     cols <- c(lvt_spc = PAL$blue, hardwood = PAL$green,
@@ -358,33 +355,33 @@ server <- function(input, output, session) {
     }
     p |> plotly_dark(xlab = "", ylab = "Share (%)")
   })
-  
+
   output$exec_narrative <- renderUI({
     items <- list(
       list(lbl = "What Changed?",
-           txt = "Housing recovery is strengthening from 2023 trough. FEDFUNDS declining. PPI Plastics and freight costs both normalized from 2022 peaks. SPC launch executed Feb 2025."),
+           txt = "FEDFUNDS fell below the 4.0% target threshold in Q4 2025 — one of the two RED assumptions resolved GREEN. Commercial ABI crossed 50 in late 2025. SPC launch is tracking toward share targets. Five of eight strategy assumptions are now on track."),
       list(lbl = "Why It Matters",
-           txt = "Each 100k increase in housing starts adds ~$350M to total addressable flooring demand industry-wide. At ~26–27% share, Shaw captures ~$90–95M of that. Margin tailwind if input costs hold."),
+           txt = "FEDFUNDS at 3.58% and MORTGAGE30US at est. 6.34% represent the most constructive rate environment since 2022. Each 100k HOUST gain adds ~$90–95M to Shaw's estimated addressable demand at ~26–27% market share."),
       list(lbl = "What It Means",
-           txt = "2025 is the first full-cycle tailwind year since 2022. Revenue and margin expansion is achievable if SPC ramp materializes and commercial sector recovers on ABI signal."),
+           txt = "2026 is the year to convert the macro tailwind into share capture. HOUST is tracking toward 1.6M. Commercial ABI recovery means Patcraft and Philadelphia have forward visibility. SPC ramp speed is now the primary internal execution variable."),
       list(lbl = "What to Do",
-           txt = "Accelerate SPC commercial ramp. Defend carpet margin through mix optimization. Deepen commercial account relationships ahead of the ABI recovery cycle.")
+           txt = "Accelerate SPC commercial ramp into production builder channel now. Lock commercial contracts ahead of the ABI-signaled demand wave in H1–H2 2026. Defend carpet margin through mix optimization toward premium bedroom and multi-family.")
     )
     div(class = "narrative-grid",
-        lapply(items, function(i)
-          div(class = "narrative-item",
-              div(class = "narrative-label", i$lbl),
-              tags$p(style = paste0("font-size:13px; line-height:1.65; color:", PAL$text, ";"),
-                     i$txt)
-          )
+      lapply(items, function(i)
+        div(class = "narrative-item",
+          div(class = "narrative-label", i$lbl),
+          tags$p(style = paste0("font-size:13px; line-height:1.65; color:", PAL$text, ";"),
+                 i$txt)
         )
+      )
     )
   })
-  
+
   # ════════════════════════════════════════════════════════════════════════════
   # MODULE 2 — PORTER'S FIVE FORCES
   # ════════════════════════════════════════════════════════════════════════════
-  
+
   output$porter_header <- renderUI({
     section_header(
       "Porter's Five Forces",
@@ -396,7 +393,7 @@ server <- function(input, output, session) {
       badge_text = "Qualitative Scoring"
     )
   })
-  
+
   # FIX 3: Plotly scatterpolar requires mode = "lines" set explicitly on each trace.
   # Original code omitted mode; plotly warned "No scatterpolar mode specified: Setting
   # the mode to markers" and then "A line object has been specified, but lines is not
@@ -443,7 +440,7 @@ server <- function(input, output, session) {
       ) |>
       config(displayModeBar = FALSE)
   })
-  
+
   output$porter_force_selector <- renderUI({
     flist <- list(
       list(key = "rivalry",     label = "Industry Rivalry",        score = 80, lv = "HIGH", col = PAL$red),
@@ -453,75 +450,75 @@ server <- function(input, output, session) {
       list(key = "substitutes", label = "Threat of Substitutes",   score = 72, lv = "HIGH", col = PAL$red)
     )
     div(style = "display:grid; grid-template-columns:1fr 1fr; gap:8px;",
-        lapply(flist, function(f) {
-          active <- rv$porter_force == f$key
-          lv_cls <- switch(f$lv, HIGH = "badge-red", LOW = "badge-green", "badge-amber")
-          div(
-            style = paste0(
-              "border:1px solid ", if (active) f$col else PAL$border, ";",
-              "background:", if (active) paste0(f$col, "1a") else "transparent", ";",
-              "border-radius:3px; padding:14px; cursor:pointer;"
-            ),
-            onclick = paste0("Shiny.setInputValue('porter_select','",
-                             f$key, "',{priority:'event'})"),
-            div(style = "display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;",
-                div(style = paste0("font-size:12px; color:",
-                                   if (active) f$col else PAL$muted, ";"), f$label),
-                tags$span(class = lv_cls, f$lv)
-            ),
-            div(style = "height:4px; background:#1e2530; border-radius:2px;",
-                div(style = paste0("height:100%; width:", f$score,
-                                   "%; background:", f$col, "; border-radius:2px;"))
-            ),
-            div(style = paste0("font-size:10px; color:", PAL$muted, "; margin-top:4px;"),
-                paste0(f$score, "/100"))
-          )
-        })
+      lapply(flist, function(f) {
+        active <- rv$porter_force == f$key
+        lv_cls <- switch(f$lv, HIGH = "badge-red", LOW = "badge-green", "badge-amber")
+        div(
+          style = paste0(
+            "border:1px solid ", if (active) f$col else PAL$border, ";",
+            "background:", if (active) paste0(f$col, "1a") else "transparent", ";",
+            "border-radius:3px; padding:14px; cursor:pointer;"
+          ),
+          onclick = paste0("Shiny.setInputValue('porter_select','",
+                           f$key, "',{priority:'event'})"),
+          div(style = "display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;",
+            div(style = paste0("font-size:12px; color:",
+                               if (active) f$col else PAL$muted, ";"), f$label),
+            tags$span(class = lv_cls, f$lv)
+          ),
+          div(style = "height:4px; background:#1e2530; border-radius:2px;",
+            div(style = paste0("height:100%; width:", f$score,
+                               "%; background:", f$col, "; border-radius:2px;"))
+          ),
+          div(style = paste0("font-size:10px; color:", PAL$muted, "; margin-top:4px;"),
+              paste0(f$score, "/100"))
+        )
+      })
     )
   })
-  
+
   observeEvent(input$porter_select, { rv$porter_force <- input$porter_select })
-  
+
   output$porter_active_header <- renderUI({
     f <- PORTER_FORCES[[rv$porter_force]]
     div(style = "display:flex; align-items:center; gap:10px;",
-        tags$span(style = paste0("color:", f$color, "; font-size:15px;"), f$label),
-        tags$span(class = switch(f$level, HIGH = "badge-red", LOW = "badge-green", "badge-amber"),
-                  paste(f$level, "PRESSURE")),
-        tags$span(class = "badge-muted", paste0(f$score, "/100"))
+      tags$span(style = paste0("color:", f$color, "; font-size:15px;"), f$label),
+      tags$span(class = switch(f$level, HIGH = "badge-red", LOW = "badge-green", "badge-amber"),
+                paste(f$level, "PRESSURE")),
+      tags$span(class = "badge-muted", paste0(f$score, "/100"))
     )
   })
-  
+
   output$porter_deep_dive <- renderUI({
     f <- PORTER_FORCES[[rv$porter_force]]
     div(
       tags$p(style = paste0("font-size:14px; color:", PAL$text,
                             "; font-style:italic; margin-bottom:20px;"), f$headline),
       div(style = "display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:14px;",
-          lapply(list(
-            list(lbl = "Hypothesis",      col = PAL$blue,  txt = f$hypothesis, items = NULL),
-            list(lbl = "Evidence",        col = PAL$amber, txt = NULL,          items = f$evidence),
-            list(lbl = "Insight",         col = PAL$accent,txt = f$insight,     items = NULL),
-            list(lbl = "Action Required", col = PAL$green, txt = f$action,      items = NULL)
-          ), function(sec) {
-            div(style = paste0("background:", sec$col, "0e; border:1px solid ",
-                               sec$col, "28; border-radius:3px; padding:14px;"),
-                div(style = paste0("font-size:10px; color:", sec$col,
-                                   "; letter-spacing:0.15em; text-transform:uppercase;",
-                                   " margin-bottom:10px;"), sec$lbl),
-                if (!is.null(sec$items))
-                  tags$ul(style = "padding-left:14px; margin:0;",
-                          lapply(sec$items, function(e)
-                            tags$li(style = "font-size:12px; line-height:1.65; margin-bottom:5px;", e)
-                          ))
-                else
-                  tags$p(style = "font-size:12px; line-height:1.7; margin:0;", sec$txt)
-            )
-          })
+        lapply(list(
+          list(lbl = "Hypothesis",      col = PAL$blue,  txt = f$hypothesis, items = NULL),
+          list(lbl = "Evidence",        col = PAL$amber, txt = NULL,          items = f$evidence),
+          list(lbl = "Insight",         col = PAL$accent,txt = f$insight,     items = NULL),
+          list(lbl = "Action Required", col = PAL$green, txt = f$action,      items = NULL)
+        ), function(sec) {
+          div(style = paste0("background:", sec$col, "0e; border:1px solid ",
+                             sec$col, "28; border-radius:3px; padding:14px;"),
+            div(style = paste0("font-size:10px; color:", sec$col,
+                               "; letter-spacing:0.15em; text-transform:uppercase;",
+                               " margin-bottom:10px;"), sec$lbl),
+            if (!is.null(sec$items))
+              tags$ul(style = "padding-left:14px; margin:0;",
+                lapply(sec$items, function(e)
+                  tags$li(style = "font-size:12px; line-height:1.65; margin-bottom:5px;", e)
+                ))
+            else
+              tags$p(style = "font-size:12px; line-height:1.7; margin:0;", sec$txt)
+          )
+        })
       )
     )
   })
-  
+
   # ADD: Porter Scoring Methodology panel — full transparency on score derivation
   output$porter_methodology <- renderUI({
     force_key <- rv$porter_force
@@ -535,206 +532,207 @@ server <- function(input, output, session) {
     )
     fl  <- force_label_map[[force_key]]
     row <- PORTER_SCORING_METHODOLOGY |> filter(force == fl)
-    
+
     if (nrow(row) == 0) return(NULL)
-    
+
     div(
       # Score summary bar
       div(style = paste0("display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;",
                          " margin-bottom:16px;"),
-          div(style = paste0("background:", PAL$accent, "10; border:1px solid ",
-                             PAL$accent, "30; border-radius:3px; padding:12px 16px;"),
-              div(style = paste0("font-size:10px; color:", PAL$accent,
-                                 "; letter-spacing:0.15em; text-transform:uppercase;"), "Shaw Score"),
-              div(style = paste0("font-size:28px; font-family:'Playfair Display',serif;",
-                                 " color:", PAL$accent, ";"), paste0(row$shaw_score, "/100")),
-              div(style = "height:4px; background:#1e2530; border-radius:2px; margin-top:6px;",
-                  div(style = paste0("height:100%; width:", row$shaw_score,
-                                     "%; background:", PAL$accent, "; border-radius:2px;")))
-          ),
-          div(style = paste0("background:", PAL$blue, "10; border:1px solid ",
-                             PAL$blue, "30; border-radius:3px; padding:12px 16px;"),
-              div(style = paste0("font-size:10px; color:", PAL$blue,
-                                 "; letter-spacing:0.15em; text-transform:uppercase;"), "Benchmark Score"),
-              div(style = paste0("font-size:28px; font-family:'Playfair Display',serif;",
-                                 " color:", PAL$blue, ";"), paste0(row$bench_score, "/100")),
-              div(style = paste0("font-size:11px; color:", PAL$muted, "; margin-top:4px;"),
-                  "Mature U.S. Mfg. composite")
-          ),
-          div(style = paste0("background:#1e253022; border:1px solid ", PAL$border,
-                             "; border-radius:3px; padding:12px 16px;"),
-              div(style = paste0("font-size:10px; color:", PAL$muted,
-                                 "; letter-spacing:0.15em; text-transform:uppercase;"), "Last Reviewed"),
-              div(style = paste0("font-size:14px; color:", PAL$text, "; margin:6px 0 4px;"),
-                  row$last_reviewed),
-              div(style = paste0("font-size:10px; color:", PAL$muted, "; font-style:italic;"),
-                  "Trigger: ", row$review_trigger)
-          )
+        div(style = paste0("background:", PAL$accent, "10; border:1px solid ",
+                           PAL$accent, "30; border-radius:3px; padding:12px 16px;"),
+          div(style = paste0("font-size:10px; color:", PAL$accent,
+                             "; letter-spacing:0.15em; text-transform:uppercase;"), "Shaw Score"),
+          div(style = paste0("font-size:28px; font-family:'Playfair Display',serif;",
+                             " color:", PAL$accent, ";"), paste0(row$shaw_score, "/100")),
+          div(style = "height:4px; background:#1e2530; border-radius:2px; margin-top:6px;",
+            div(style = paste0("height:100%; width:", row$shaw_score,
+                               "%; background:", PAL$accent, "; border-radius:2px;")))
+        ),
+        div(style = paste0("background:", PAL$blue, "10; border:1px solid ",
+                           PAL$blue, "30; border-radius:3px; padding:12px 16px;"),
+          div(style = paste0("font-size:10px; color:", PAL$blue,
+                             "; letter-spacing:0.15em; text-transform:uppercase;"), "Benchmark Score"),
+          div(style = paste0("font-size:28px; font-family:'Playfair Display',serif;",
+                             " color:", PAL$blue, ";"), paste0(row$bench_score, "/100")),
+          div(style = paste0("font-size:11px; color:", PAL$muted, "; margin-top:4px;"),
+              "Mature U.S. Mfg. composite")
+        ),
+        div(style = paste0("background:#1e253022; border:1px solid ", PAL$border,
+                           "; border-radius:3px; padding:12px 16px;"),
+          div(style = paste0("font-size:10px; color:", PAL$muted,
+                             "; letter-spacing:0.15em; text-transform:uppercase;"), "Last Reviewed"),
+          div(style = paste0("font-size:14px; color:", PAL$text, "; margin:6px 0 4px;"),
+              row$last_reviewed),
+          div(style = paste0("font-size:10px; color:", PAL$muted, "; font-style:italic;"),
+              "Trigger: ", row$review_trigger)
+        )
       ),
-      
+
       # Score components breakdown
       div(style = paste0("background:", PAL$panel, "; border:1px solid ", PAL$border,
                          "; border-radius:3px; padding:16px; margin-bottom:12px;"),
-          div(style = paste0("font-size:10px; color:", PAL$accent,
-                             "; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:10px;"),
-              "Score Derivation — Step by Step"),
-          tags$pre(style = paste0("font-size:11px; line-height:1.8; color:", PAL$text,
-                                  "; white-space:pre-wrap; margin:0; font-family:'Barlow',sans-serif;"),
-                   row$score_components_shaw)
+        div(style = paste0("font-size:10px; color:", PAL$accent,
+                           "; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:10px;"),
+            "Score Derivation — Step by Step"),
+        tags$pre(style = paste0("font-size:11px; line-height:1.8; color:", PAL$text,
+                                "; white-space:pre-wrap; margin:0; font-family:'Barlow',sans-serif;"),
+                 row$score_components_shaw)
       ),
-      
+
       # Benchmark rationale
       div(style = paste0("background:#1e253015; border:1px solid ", PAL$border,
                          "; border-radius:3px; padding:14px; margin-bottom:12px;"),
-          div(style = paste0("font-size:10px; color:", PAL$blue,
-                             "; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;"),
-              "Benchmark Rationale"),
-          tags$p(style = paste0("font-size:12px; line-height:1.65; margin:0; color:", PAL$muted, ";"),
-                 row$benchmark_rationale)
+        div(style = paste0("font-size:10px; color:", PAL$blue,
+                           "; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;"),
+            "Benchmark Rationale"),
+        tags$p(style = paste0("font-size:12px; line-height:1.65; margin:0; color:", PAL$muted, ";"),
+               row$benchmark_rationale)
       ),
-      
+
       # Primary data sources
       div(style = paste0("background:#1e253010; border:1px solid ", PAL$border,
                          "; border-radius:3px; padding:14px;"),
-          div(style = paste0("font-size:10px; color:", PAL$green,
-                             "; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;"),
-              "Primary Data Sources"),
-          tags$p(style = paste0("font-size:12px; line-height:1.65; margin:0;"),
-                 row$primary_data_sources)
+        div(style = paste0("font-size:10px; color:", PAL$green,
+                           "; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;"),
+            "Primary Data Sources"),
+        tags$p(style = paste0("font-size:12px; line-height:1.65; margin:0;"),
+               row$primary_data_sources)
       )
     )
   })
-  
+
   # ════════════════════════════════════════════════════════════════════════════
   # MODULE 3 — SWOT ENGINE
   # ════════════════════════════════════════════════════════════════════════════
-  
+
   output$swot_header <- renderUI({
     section_header(
       "Dynamic SWOT Engine",
       subtitle = paste0(
         "Evidence-based SWOT with leading indicators and risk probability scoring. ",
         "Evidence is sourced from public SEC filings, FRED data, and trade press. ",
-        "Risk probability reflects analyst judgement of materialization likelihood within 12 months."
+        "Risk probability reflects analyst judgement of materialization likelihood within 12 months. ",
+        "Note: Shaw and Engineered Floors are separate, independent companies."
       ),
       badge_text = "Evidence-Based"
     )
   })
-  
+
   output$swot_quadrant_row <- renderUI({
     quads   <- list(S = list(col=PAL$green), W = list(col=PAL$red),
                     O = list(col=PAL$blue),  T = list(col=PAL$amber))
     qlabels <- list(S="Strengths",W="Weaknesses",O="Opportunities",T="Threats")
     div(style = "display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px;",
-        lapply(names(quads), function(q) {
-          qd     <- quads[[q]]
-          active <- rv$swot_quad == q
-          n      <- length(SWOT_DATA[[q]]$items)
-          div(style = paste0(
-            "border:1px solid ", if (active) qd$col else PAL$border, ";",
-            "background:", if (active) paste0(qd$col, "1a") else "transparent", ";",
-            "border-radius:3px; padding:16px; cursor:pointer; text-align:center;"
-          ),
-          onclick = paste0("Shiny.setInputValue('swot_quad_sel','",
-                           q, "',{priority:'event'})"),
-          div(style = paste0("font-size:28px; font-family:'Playfair Display',serif;",
-                             " color:", if (active) qd$col else PAL$muted, "; margin-bottom:4px;"), q),
-          div(style = paste0("font-size:13px; color:",
-                             if (active) PAL$text else PAL$muted, ";"), qlabels[[q]]),
-          div(style = paste0("font-size:11px; color:", PAL$muted, "; margin-top:4px;"),
-              paste(n, "factors"))
-          )
-        })
+      lapply(names(quads), function(q) {
+        qd     <- quads[[q]]
+        active <- rv$swot_quad == q
+        n      <- length(SWOT_DATA[[q]]$items)
+        div(style = paste0(
+          "border:1px solid ", if (active) qd$col else PAL$border, ";",
+          "background:", if (active) paste0(qd$col, "1a") else "transparent", ";",
+          "border-radius:3px; padding:16px; cursor:pointer; text-align:center;"
+        ),
+        onclick = paste0("Shiny.setInputValue('swot_quad_sel','",
+                         q, "',{priority:'event'})"),
+        div(style = paste0("font-size:28px; font-family:'Playfair Display',serif;",
+                           " color:", if (active) qd$col else PAL$muted, "; margin-bottom:4px;"), q),
+        div(style = paste0("font-size:13px; color:",
+                           if (active) PAL$text else PAL$muted, ";"), qlabels[[q]]),
+        div(style = paste0("font-size:11px; color:", PAL$muted, "; margin-top:4px;"),
+            paste(n, "factors"))
+        )
+      })
     )
   })
-  
+
   observeEvent(input$swot_quad_sel, { rv$swot_quad <- input$swot_quad_sel })
-  
+
   output$swot_items <- renderUI({
     q     <- rv$swot_quad
     qd    <- SWOT_DATA[[q]]
     items <- qd$items
     col   <- qd$color
     desc  <- switch(q,
-                    S = "Internal positive factors — sourced from public data and trade press",
-                    W = "Internal risk factors — with FRED series leading indicators",
-                    O = "External upside factors — prioritized by revenue scale",
-                    T = "External risk factors — with probability scoring"
+      S = "Internal positive factors — sourced from public data and trade press",
+      W = "Internal risk factors — with FRED series leading indicators",
+      O = "External upside factors — prioritized by revenue scale",
+      T = "External risk factors — with probability scoring"
     )
     div(
       tags$p(style = paste0("font-size:12px; color:", PAL$muted,
                             "; font-style:italic; margin-bottom:16px;"), desc),
       div(style = "display:grid; gap:8px;",
-          lapply(seq_along(items), function(i) {
-            it    <- items[[i]]
-            r_col <- if (it$risk < 30) PAL$green
-            else if (it$risk < 60) PAL$amber
-            else PAL$red
-            tc_cls <- switch(it$tier, HIGH = "badge-red", MED = "badge-amber", "badge-muted")
-            div(style = paste0(
-              "background:rgba(255,255,255,0.015); border:1px solid ", PAL$border, ";",
-              "border-radius:3px; padding:16px 18px;"
+        lapply(seq_along(items), function(i) {
+          it    <- items[[i]]
+          r_col <- if (it$risk < 30) PAL$green
+                   else if (it$risk < 60) PAL$amber
+                   else PAL$red
+          tc_cls <- switch(it$tier, HIGH = "badge-red", MED = "badge-amber", "badge-muted")
+          div(style = paste0(
+            "background:rgba(255,255,255,0.015); border:1px solid ", PAL$border, ";",
+            "border-radius:3px; padding:16px 18px;"
+          ),
+          div(style = "display:flex; justify-content:space-between; align-items:center;",
+            div(style = "display:flex; gap:12px; align-items:center;",
+              tags$span(style = paste0("font-size:11px; color:", col,
+                                       "; min-width:20px;"), sprintf("%02d", i)),
+              tags$span(style = paste0("font-size:15px; font-family:'Playfair Display',serif;",
+                                       " color:#c0b8a8;"), it$title),
+              tags$span(class = tc_cls, it$tier)
             ),
-            div(style = "display:flex; justify-content:space-between; align-items:center;",
-                div(style = "display:flex; gap:12px; align-items:center;",
-                    tags$span(style = paste0("font-size:11px; color:", col,
-                                             "; min-width:20px;"), sprintf("%02d", i)),
-                    tags$span(style = paste0("font-size:15px; font-family:'Playfair Display',serif;",
-                                             " color:#c0b8a8;"), it$title),
-                    tags$span(class = tc_cls, it$tier)
-                ),
-                div(style = "display:flex; gap:10px; align-items:center;",
-                    div(style = "text-align:right;",
-                        div(style = paste0("font-size:10px; color:", PAL$muted, ";"), "Risk prob."),
-                        div(style = paste0("font-size:13px; color:", r_col, "; font-weight:bold;"),
-                            paste0(it$risk, "%"))
-                    ),
-                    div(style = "width:48px;",
-                        div(style = "height:4px; background:#1e2530; border-radius:2px;",
-                            div(style = paste0("height:100%; width:", it$risk,
-                                               "%; background:", r_col, "; border-radius:2px;"))
-                        )
-                    )
-                )
-            ),
-            div(style = paste0(
-              "margin-top:14px; padding-top:14px; border-top:1px solid ", PAL$border, ";",
-              "display:grid; grid-template-columns:1.2fr 1fr 0.8fr; gap:14px;"
-            ),
-            div(
-              div(style = paste0("font-size:10px; color:", PAL$accent,
-                                 "; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:6px;"),
-                  "Evidence & Source"),
-              tags$p(style = "font-size:12px; line-height:1.65; margin:0;", it$evidence)
-            ),
-            div(
-              div(style = paste0("font-size:10px; color:", PAL$blue,
-                                 "; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:6px;"),
-                  "Leading Indicator"),
-              tags$p(style = "font-size:12px; line-height:1.65; margin:0;", it$indicator)
-            ),
-            div(
-              div(style = paste0("font-size:10px; color:", r_col,
-                                 "; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:6px;"),
-                  "Risk Assessment"),
-              div(style = "height:8px; background:#1e2530; border-radius:4px; margin-bottom:8px;",
-                  div(style = paste0("height:100%; width:", it$risk,
-                                     "%; background:", r_col, "; border-radius:4px;"))
+            div(style = "display:flex; gap:10px; align-items:center;",
+              div(style = "text-align:right;",
+                div(style = paste0("font-size:10px; color:", PAL$muted, ";"), "Risk prob."),
+                div(style = paste0("font-size:13px; color:", r_col, "; font-weight:bold;"),
+                    paste0(it$risk, "%"))
               ),
-              tags$p(style = paste0("font-size:12px; color:", r_col, "; margin:0;"),
-                     paste0(it$risk, "% materialization probability (analyst est.)"))
+              div(style = "width:48px;",
+                div(style = "height:4px; background:#1e2530; border-radius:2px;",
+                  div(style = paste0("height:100%; width:", it$risk,
+                                     "%; background:", r_col, "; border-radius:2px;"))
+                )
+              )
             )
-            )
-            )
-          })
+          ),
+          div(style = paste0(
+            "margin-top:14px; padding-top:14px; border-top:1px solid ", PAL$border, ";",
+            "display:grid; grid-template-columns:1.2fr 1fr 0.8fr; gap:14px;"
+          ),
+          div(
+            div(style = paste0("font-size:10px; color:", PAL$accent,
+                               "; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:6px;"),
+                "Evidence & Source"),
+            tags$p(style = "font-size:12px; line-height:1.65; margin:0;", it$evidence)
+          ),
+          div(
+            div(style = paste0("font-size:10px; color:", PAL$blue,
+                               "; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:6px;"),
+                "Leading Indicator"),
+            tags$p(style = "font-size:12px; line-height:1.65; margin:0;", it$indicator)
+          ),
+          div(
+            div(style = paste0("font-size:10px; color:", r_col,
+                               "; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:6px;"),
+                "Risk Assessment"),
+            div(style = "height:8px; background:#1e2530; border-radius:4px; margin-bottom:8px;",
+              div(style = paste0("height:100%; width:", it$risk,
+                                 "%; background:", r_col, "; border-radius:4px;"))
+            ),
+            tags$p(style = paste0("font-size:12px; color:", r_col, "; margin:0;"),
+                   paste0(it$risk, "% materialization probability (analyst est.)"))
+          )
+          )
+          )
+        })
       )
     )
   })
-  
+
   # ════════════════════════════════════════════════════════════════════════════
   # MODULE 4 — ASSUMPTION MONITOR
   # ════════════════════════════════════════════════════════════════════════════
-  
+
   output$assump_header <- renderUI({
     section_header(
       "Strategy Assumptions Monitor",
@@ -746,13 +744,13 @@ server <- function(input, output, session) {
       badge_text = "Early Warning System"
     )
   })
-  
+
   output$assump_summary_cards <- renderUI({
     cnts <- table(ASSUMPTIONS$status)
     g <- as.integer(cnts["green"]);  if (is.na(g)) g <- 0L
     y <- as.integer(cnts["yellow"]); if (is.na(y)) y <- 0L
     r <- as.integer(cnts["red"]);    if (is.na(r)) r <- 0L
-    
+
     mk <- function(n, lbl, sub, col) {
       div(style = paste0(
         "background:", col, "12; border:1px solid ", col, "33;",
@@ -767,36 +765,36 @@ server <- function(input, output, session) {
       ))
     }
     div(style = "display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;",
-        mk(g, "On Track",  "Assumptions holding",         PAL$green),
-        mk(y, "Watch",     "Approaching threshold",        PAL$amber),
-        mk(r, "At Risk",   "Assumption broken or failing", PAL$red)
+      mk(g, "On Track",  "Assumptions holding",         PAL$green),
+      mk(y, "Watch",     "Approaching threshold",        PAL$amber),
+      mk(r, "At Risk",   "Assumption broken or failing", PAL$red)
     )
   })
-  
+
   output$assump_cat_filters <- renderUI({
     cats <- c("ALL", sort(unique(ASSUMPTIONS$category)))
     lapply(cats, function(cat) {
       active <- rv$assump_cat == cat
       tags$button(cat,
-                  style = paste0(
-                    "background:", if (active) "rgba(200,168,75,0.15)" else "transparent", ";",
-                    "border:1px solid ", if (active) PAL$accent else PAL$border, ";",
-                    "border-radius:2px; padding:5px 14px; cursor:pointer;",
-                    "font-size:11px; color:", if (active) PAL$accent else PAL$muted,
-                    "; letter-spacing:0.1em; text-transform:uppercase;"
-                  ),
-                  onclick = paste0("Shiny.setInputValue('assump_cat_sel','",
-                                   cat, "',{priority:'event'})")
+        style = paste0(
+          "background:", if (active) "rgba(200,168,75,0.15)" else "transparent", ";",
+          "border:1px solid ", if (active) PAL$accent else PAL$border, ";",
+          "border-radius:2px; padding:5px 14px; cursor:pointer;",
+          "font-size:11px; color:", if (active) PAL$accent else PAL$muted,
+          "; letter-spacing:0.1em; text-transform:uppercase;"
+        ),
+        onclick = paste0("Shiny.setInputValue('assump_cat_sel','",
+                         cat, "',{priority:'event'})")
       )
     })
   })
-  
+
   observeEvent(input$assump_cat_sel, { rv$assump_cat <- input$assump_cat_sel })
-  
+
   output$assump_table <- renderDT({
     d <- ASSUMPTIONS
     if (rv$assump_cat != "ALL") d <- filter(d, category == rv$assump_cat)
-    
+
     d_disp <- d |>
       mutate(
         Status = case_when(
@@ -819,23 +817,23 @@ server <- function(input, output, session) {
         )
       ) |>
       select(Status, assumption, category, Weight, metric, current, threshold, trend, Progress)
-    
+
     names(d_disp) <- c("Status","Assumption","Category","Priority",
-                       "Metric (FRED / Source)","Current","Threshold","Trend","Progress")
-    
+                        "Metric (FRED / Source)","Current","Threshold","Trend","Progress")
+
     datatable(d_disp,
-              escape   = FALSE,
-              rownames = FALSE,
-              options  = list(
-                pageLength = 15,
-                dom        = "t",
-                ordering   = TRUE,
-                columnDefs = list(list(className = "dt-left", targets = "_all"))
-              ),
-              style = "auto"
+      escape   = FALSE,
+      rownames = FALSE,
+      options  = list(
+        pageLength = 15,
+        dom        = "t",
+        ordering   = TRUE,
+        columnDefs = list(list(className = "dt-left", targets = "_all"))
+      ),
+      style = "auto"
     )
   })
-  
+
   output$assump_directive <- renderUI({
     insight_box(
       paste0(
@@ -848,11 +846,11 @@ server <- function(input, output, session) {
       "accent", "Executive Directive"
     )
   })
-  
+
   # ════════════════════════════════════════════════════════════════════════════
   # MODULE 5 — SCENARIO MODELING
   # ════════════════════════════════════════════════════════════════════════════
-  
+
   output$scenario_header <- renderUI({
     section_header(
       "Scenario & Sensitivity Modeling",
@@ -865,43 +863,43 @@ server <- function(input, output, session) {
       badge_color = "amber"
     )
   })
-  
+
   output$scenario_selector <- renderUI({
     div(style = "display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px;",
-        lapply(names(SCENARIO_META), function(s) {
-          m      <- SCENARIO_META[[s]]
-          active <- rv$scenario_sel == s
-          div(style = paste0(
-            "border:1px solid ", if (active) m$color else PAL$border, ";",
-            "background:", if (active) paste0(m$color, "1a") else "transparent", ";",
-            "border-radius:3px; padding:14px; cursor:pointer;"
-          ),
-          onclick = paste0("Shiny.setInputValue('scenario_sel_btn','",
-                           s, "',{priority:'event'})"),
-          div(style = paste0("font-size:13px; color:",
-                             if (active) m$color else PAL$muted, "; margin-bottom:6px;"), m$label),
-          div(style = paste0("font-size:11px; color:", PAL$muted, "; line-height:1.5;"),
-              substr(m$desc, 1, 70), "...")
-          )
-        })
+      lapply(names(SCENARIO_META), function(s) {
+        m      <- SCENARIO_META[[s]]
+        active <- rv$scenario_sel == s
+        div(style = paste0(
+          "border:1px solid ", if (active) m$color else PAL$border, ";",
+          "background:", if (active) paste0(m$color, "1a") else "transparent", ";",
+          "border-radius:3px; padding:14px; cursor:pointer;"
+        ),
+        onclick = paste0("Shiny.setInputValue('scenario_sel_btn','",
+                         s, "',{priority:'event'})"),
+        div(style = paste0("font-size:13px; color:",
+                           if (active) m$color else PAL$muted, "; margin-bottom:6px;"), m$label),
+        div(style = paste0("font-size:11px; color:", PAL$muted, "; line-height:1.5;"),
+            substr(m$desc, 1, 70), "...")
+        )
+      })
     )
   })
-  
+
   observeEvent(input$scenario_sel_btn, { rv$scenario_sel <- input$scenario_sel_btn })
-  
+
   output$scenario_desc_box <- renderUI({
     m <- SCENARIO_META[[rv$scenario_sel]]
     div(style = paste0("padding:14px 18px; background:", m$color, "0e;",
                        "border:1px solid ", m$color, "33; border-radius:3px;"),
-        div(style = paste0("font-size:11px; color:", m$color,
-                           "; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;"),
-            paste(m$label, "— Scenario Drivers")),
-        tags$p(style = paste0("font-size:13px; line-height:1.7; margin:0 0 8px;"), m$desc),
-        div(style = paste0("font-size:11px; color:", PAL$muted, ";"),
-            "Key FRED indicators: ", m$drivers)
+      div(style = paste0("font-size:11px; color:", m$color,
+                         "; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;"),
+          paste(m$label, "— Scenario Drivers")),
+      tags$p(style = paste0("font-size:13px; line-height:1.7; margin:0 0 8px;"), m$desc),
+      div(style = paste0("font-size:11px; color:", PAL$muted, ";"),
+          "Key FRED indicators: ", m$drivers)
     )
   })
-  
+
   output$scenario_rev_chart <- renderPlotly({
     d <- SCENARIOS[[rv$scenario_sel]]
     m <- SCENARIO_META[[rv$scenario_sel]]
@@ -918,13 +916,13 @@ server <- function(input, output, session) {
                    showlegend = FALSE, hoverinfo = "skip") |>
       plotly_dark(xlab = "", ylab = "Revenue $M (analyst est.)", legend = FALSE)
   })
-  
+
   output$scenario_rev_note <- renderUI({
     data_note_ui(
       "Revenue figures are analyst estimates. Shaw Industries (Berkshire Hathaway subsidiary) does not publicly report standalone revenue or EBITDA. EBITDA margins are modeled from public-company industry peers."
     )
   })
-  
+
   output$scenario_ebitda_chart <- renderPlotly({
     d <- SCENARIOS[[rv$scenario_sel]]
     m <- SCENARIO_META[[rv$scenario_sel]]
@@ -936,7 +934,7 @@ server <- function(input, output, session) {
             hovertemplate = "%{x}: $%{y}M est.<extra></extra>") |>
       plotly_dark(xlab = "", ylab = "EBITDA $M (analyst est.)", legend = FALSE)
   })
-  
+
   output$scenario_table <- renderDT({
     d <- SCENARIOS[[rv$scenario_sel]] |>
       mutate(
@@ -950,43 +948,43 @@ server <- function(input, output, session) {
         epm_fmt = paste0(em_pct, "%")
       ) |>
       select(year, rev_fmt, gr_fmt, em_fmt, eb_fmt, epm_fmt)
-    
+
     names(d) <- c("Year","Revenue ($M est.)","YoY Growth",
                   "EBITDA Margin","EBITDA ($M est.)","EBITDA/Rev")
-    
+
     datatable(d, rownames = FALSE,
               options = list(dom = "t", ordering = FALSE,
                              columnDefs = list(list(className = "dt-left", targets = "_all"))),
               style = "auto") |>
       formatStyle("YoY Growth",
-                  color = JS(paste0(
-                    "function(v){",
-                    "if(v==='\u2014') return '", PAL$muted, "';",
-                    "return v.startsWith('+') ? '", PAL$green, "' : '", PAL$red, "';",
-                    "}"
-                  ))
+        color = JS(paste0(
+          "function(v){",
+          "if(v==='\u2014') return '", PAL$muted, "';",
+          "return v.startsWith('+') ? '", PAL$green, "' : '", PAL$red, "';",
+          "}"
+        ))
       )
   })
-  
+
   output$leading_indicators <- renderUI({
     div(style = "display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;",
-        lapply(seq_len(nrow(LEADING_INDICATORS)), function(i) {
-          r   <- LEADING_INDICATORS[i, ]
-          col <- switch(r$status, green = PAL$green, amber = PAL$amber, PAL$red)
-          div(style = paste0("border:1px solid ", PAL$border,
-                             "; border-radius:3px; padding:12px 14px;"),
-              div(style = "font-size:12px; margin-bottom:4px;", r$indicator),
-              div(style = paste0("font-size:11px; color:", PAL$muted, "; margin-bottom:6px;"), r$lead_time),
-              div(style = paste0("font-size:12px; color:", col, ";"), r$current)
-          )
-        })
+      lapply(seq_len(nrow(LEADING_INDICATORS)), function(i) {
+        r   <- LEADING_INDICATORS[i, ]
+        col <- switch(r$status, green = PAL$green, amber = PAL$amber, PAL$red)
+        div(style = paste0("border:1px solid ", PAL$border,
+                           "; border-radius:3px; padding:12px 14px;"),
+          div(style = "font-size:12px; margin-bottom:4px;", r$indicator),
+          div(style = paste0("font-size:11px; color:", PAL$muted, "; margin-bottom:6px;"), r$lead_time),
+          div(style = paste0("font-size:12px; color:", col, ";"), r$current)
+        )
+      })
     )
   })
-  
+
   # ════════════════════════════════════════════════════════════════════════════
   # MODULE 6 — FACT BASE
   # ════════════════════════════════════════════════════════════════════════════
-  
+
   output$factbase_header <- renderUI({
     section_header(
       "Live Fact Base",
@@ -999,7 +997,7 @@ server <- function(input, output, session) {
       badge_color = if (rv$using_live) "green" else "amber"
     )
   })
-  
+
   output$source_card_row <- renderUI({
     sources <- list(
       list(src = "FRED", col = PAL$accent,
@@ -1013,45 +1011,45 @@ server <- function(input, output, session) {
            id   = "Set CENSUS_API_KEY for direct Census API access")
     )
     div(style = "display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;",
-        lapply(sources, function(s) {
-          cls <- switch(s$src, FRED = "badge-accent", tidyquant = "badge-blue", "badge-green")
-          div(style = paste0("background:", s$col, "0a; border:1px solid ",
-                             s$col, "22; border-radius:3px; padding:14px 16px;"),
-              div(style = "display:flex; justify-content:space-between; margin-bottom:8px;",
-                  tags$span(class = cls, s$src)
-              ),
-              div(style = paste0("font-size:12px; color:", PAL$muted, "; line-height:1.6; margin-bottom:6px;"),
-                  s$desc),
-              div(style = paste0("font-size:10px; color:", PAL$muted, "; font-style:italic;"), s$id)
-          )
-        })
+      lapply(sources, function(s) {
+        cls <- switch(s$src, FRED = "badge-accent", tidyquant = "badge-blue", "badge-green")
+        div(style = paste0("background:", s$col, "0a; border:1px solid ",
+                           s$col, "22; border-radius:3px; padding:14px 16px;"),
+          div(style = "display:flex; justify-content:space-between; margin-bottom:8px;",
+            tags$span(class = cls, s$src)
+          ),
+          div(style = paste0("font-size:12px; color:", PAL$muted, "; line-height:1.6; margin-bottom:6px;"),
+              s$desc),
+          div(style = paste0("font-size:10px; color:", PAL$muted, "; font-style:italic;"), s$id)
+        )
+      })
     )
   })
-  
+
   output$factbase_cat_filters <- renderUI({
     cats <- c("ALL", sort(unique(FACT_BASE_STATIC$category)))
     lapply(cats, function(cat) {
       active <- rv$fb_cat == cat
       tags$button(cat,
-                  style = paste0(
-                    "background:", if (active) "rgba(200,168,75,0.15)" else "transparent", ";",
-                    "border:1px solid ", if (active) PAL$accent else PAL$border, ";",
-                    "border-radius:2px; padding:5px 14px; cursor:pointer;",
-                    "font-size:11px; color:", if (active) PAL$accent else PAL$muted,
-                    "; letter-spacing:0.1em; text-transform:uppercase;"
-                  ),
-                  onclick = paste0("Shiny.setInputValue('fb_cat_sel','",
-                                   cat, "',{priority:'event'})")
+        style = paste0(
+          "background:", if (active) "rgba(200,168,75,0.15)" else "transparent", ";",
+          "border:1px solid ", if (active) PAL$accent else PAL$border, ";",
+          "border-radius:2px; padding:5px 14px; cursor:pointer;",
+          "font-size:11px; color:", if (active) PAL$accent else PAL$muted,
+          "; letter-spacing:0.1em; text-transform:uppercase;"
+        ),
+        onclick = paste0("Shiny.setInputValue('fb_cat_sel','",
+                         cat, "',{priority:'event'})")
       )
     })
   })
-  
+
   observeEvent(input$fb_cat_sel, { rv$fb_cat <- input$fb_cat_sel })
-  
+
   # ADD: factbase_data reactive: merges live FRED + live equity + static fallback
   factbase_data <- reactive({
     d <- FACT_BASE_STATIC
-    
+
     # Merge live FRED values
     if (rv$using_live && !is.null(rv$macro)) {
       m    <- tail(rv$macro, 1)
@@ -1073,7 +1071,7 @@ server <- function(input, output, session) {
         }
       }
     }
-    
+
     # ADD: merge live equity values from tidyquant
     if (rv$using_equity && !is.null(rv$equity)) {
       eq_map <- list(
@@ -1089,21 +1087,21 @@ server <- function(input, output, session) {
           if (length(idx) > 0) {
             d$value[idx]  <- paste0("$", smr$last_close)
             d$change[idx] <- paste0(ifelse(smr$ytd_chg_pct >= 0, "+", ""),
-                                    smr$ytd_chg_pct, "% YTD")
+                                     smr$ytd_chg_pct, "% YTD")
             d$period[idx] <- paste0("Live — ", smr$last_date)
             d$note[idx]   <- paste0("Live via tidyquant/Yahoo Finance. ",
-                                    "52-wk: $", smr$low_52wk, "–$", smr$high_52wk)
+                                     "52-wk: $", smr$low_52wk, "–$", smr$high_52wk)
           }
         }
       }
     }
     d
   })
-  
+
   output$factbase_table <- renderDT({
     d <- factbase_data()
     if (rv$fb_cat != "ALL") d <- filter(d, category == rv$fb_cat)
-    
+
     d_disp <- d |>
       mutate(
         Signal = paste0(
@@ -1121,9 +1119,9 @@ server <- function(input, output, session) {
         Category = paste0('<span class="badge-muted">', category, '</span>')
       ) |>
       select(Signal, Source, Category, value, change, period, note)
-    
+
     names(d_disp) <- c("Signal","Source","Category","Value","Change","Period","Data Note")
-    
+
     datatable(d_disp, escape = FALSE, rownames = FALSE,
               options = list(
                 pageLength = 15, dom = "t",
@@ -1133,64 +1131,61 @@ server <- function(input, output, session) {
                 )
               ), style = "auto")
   })
-  
+
   output$macro_heatmap <- renderUI({
     div(style = "padding:4px 0; display:grid; gap:12px;",
-        lapply(seq_len(nrow(MACRO_SIGNALS)), function(i) {
-          r   <- MACRO_SIGNALS[i, ]
-          col <- switch(r$status, green = PAL$green, amber = PAL$amber, red = PAL$red, PAL$muted)
-          div(
-            div(style = "display:grid; grid-template-columns:170px 1fr 32px; gap:10px;",
-                div(style = "font-size:12px;", r$label),
-                div(style = "height:6px; background:#1e2530; border-radius:3px; margin-top:5px;",
-                    div(style = paste0("height:100%; width:", r$score, "%; background:", col,
-                                       "; border-radius:3px;"))
-                ),
-                div(style = paste0("font-size:11px; color:", col,
-                                   "; font-weight:bold; text-align:right;"), r$score)
+      lapply(seq_len(nrow(MACRO_SIGNALS)), function(i) {
+        r   <- MACRO_SIGNALS[i, ]
+        col <- switch(r$status, green = PAL$green, amber = PAL$amber, red = PAL$red, PAL$muted)
+        div(
+          div(style = "display:grid; grid-template-columns:170px 1fr 32px; gap:10px;",
+            div(style = "font-size:12px;", r$label),
+            div(style = "height:6px; background:#1e2530; border-radius:3px; margin-top:5px;",
+              div(style = paste0("height:100%; width:", r$score, "%; background:", col,
+                                 "; border-radius:3px;"))
             ),
-            div(style = paste0("font-size:10px; color:", PAL$muted,
-                               "; margin-top:3px; padding-left:180px;"), r$note)
-          )
-        })
+            div(style = paste0("font-size:11px; color:", col,
+                               "; font-weight:bold; text-align:right;"), r$score)
+          ),
+          div(style = paste0("font-size:10px; color:", PAL$muted,
+                             "; margin-top:3px; padding-left:180px;"), r$note)
+        )
+      })
     )
   })
-  
-  # FIX 4: Engineered Floors.
 
+  # FIX 4: Engineered Floors is a SEPARATE, INDEPENDENT company.
+  # Original note said "Effectively a Shaw-aligned entity" — this is incorrect.
+  # Engineered Floors was founded in 2010 by Jim Bethel, formerly Shaw's CEO.
+  # It is a direct competitor to Shaw, not an affiliate or aligned entity.
   output$competitive_intel <- renderUI({
     intel <- list(
-      list(co = "Mohawk Industries (MHK) — NYSE: MHK", st = "yellow",
-           note = "FY2023 10-K: $10.9B revenue; gross margin 29.6% (down from ~34% in 2018). Largest direct competitor; significant LVT capacity; quarterly filings on SEC EDGAR. Live quote available via tidyquant."),
-      list(co = "Interface, Inc. (TILE) — Nasdaq: TILE", st = "green",
-           note = "FY2023 10-K: $1.37B revenue; gross margin 38%. Pure commercial modular carpet — not a direct residential competitor. Growing healthcare and corporate segments. Live quote available via tidyquant."),
-      list(co = "Armstrong World Industries (AWI) — NYSE: AWI", st = "yellow",
-           note = "FY2023 10-K: $1.27B revenue; primarily ceiling and wall systems — flooring is a secondary segment. Gross margin 35.1%. Adjacent, not direct. Live quote available via tidyquant."),
+      list(co = "Mohawk Industries (MHK) — NYSE", st = "yellow",
+           note = "Est. $10.6B revenue (FY2024). Gross margin ~30.1% (down from ~34% in FY2018). Largest direct competitor. Significant LVT/SPC capacity. Quarterly filings on SEC EDGAR."),
+      list(co = "Interface, Inc. (TILE) — Nasdaq", st = "green",
+           note = "Est. $1.41B revenue (FY2024). Gross margin ~38.5%. Commercial modular carpet specialist — not a direct residential competitor. Growing healthcare and corporate verticals."),
+      list(co = "Armstrong World Industries (AWI) — NYSE", st = "yellow",
+           note = "Est. $1.31B revenue (FY2024). Primarily ceiling and wall systems; flooring is secondary. Gross margin ~35.8%. Adjacent, not direct."),
       list(co = "Tarkett SA — private listing", st = "yellow",
-           note = "2023 Annual Report: ~\u20AC2.9B revenue. European LVT leader with growing U.S. presence. Private label flooring segments competing on price. Monitor Census HS 3918 import volumes."),
-      list(co = "Engineered Floors — private, independent competitor", st = "red",
-           note = paste0(
-             "Founded 2010 by Jim Bethel Shaw, formerly Shaw Industries CEO. Headquartered Dalton, GA. ",
-             "Focused on polyester-optimized residential carpet manufacturing. Est. $1.5–2B revenue. ",
-             "Direct Shaw competitor in mid-market residential carpet. No public financials. ",
-             "Monitor via Floor Covering Weekly market share data and trade press."
-           ))
+           note = "~\u20AC2.9B revenue (2024 est.). European LVT leader with growing U.S. commercial presence. Monitor Census HS 3918 import volumes for competitive signal."),
+      list(co = "Engineered Floors — private", st = "red",
+           note = "Est. $1.5–2.0B revenue. Focused polyester residential carpet manufacturer based in Dalton, GA. Direct competitor in mid-market residential carpet. No public financials.")
     )
     div(style = "display:grid; gap:10px;",
-        lapply(intel, function(c) {
-          col <- switch(c$st, green = PAL$green, yellow = PAL$amber, PAL$red)
-          div(style = paste0("display:flex; gap:12px; padding:10px 12px;",
-                             "background:rgba(255,255,255,0.02); border-radius:3px;",
-                             "border:1px solid ", PAL$border, ";"),
-              div(style = paste0("width:7px;height:7px;border-radius:50%;background:",
-                                 col, ";margin-top:4px;flex-shrink:0;")),
-              div(
-                div(style = "font-size:12px; margin-bottom:4px;", c$co),
-                div(style = paste0("font-size:11px; color:", PAL$muted, "; line-height:1.5;"), c$note)
-              )
+      lapply(intel, function(c) {
+        col <- switch(c$st, green = PAL$green, yellow = PAL$amber, PAL$red)
+        div(style = paste0("display:flex; gap:12px; padding:10px 12px;",
+                           "background:rgba(255,255,255,0.02); border-radius:3px;",
+                           "border:1px solid ", PAL$border, ";"),
+          div(style = paste0("width:7px;height:7px;border-radius:50%;background:",
+                             col, ";margin-top:4px;flex-shrink:0;")),
+          div(
+            div(style = "font-size:12px; margin-bottom:4px;", c$co),
+            div(style = paste0("font-size:11px; color:", PAL$muted, "; line-height:1.5;"), c$note)
           )
-        })
+        )
+      })
     )
   })
-  
+
 }

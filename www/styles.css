@@ -1,10 +1,13 @@
-/* ── Shaw Industries CEO Strategy Portal ─────────────────────────────────── */
-/* www/styles.css  |  Dark theme & component overrides                        */
+/* ── Shaw Industries Strategy Intelligence Portal ────────────────────────── */
+/* www/styles.css  |  Shaw navy/blue dark theme                               */
+
+/* ── Google Fonts ──────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Barlow:wght@300;400;500&display=swap');
 
 /* ── Base ──────────────────────────────────────────────────────────────────── */
 html, body {
-  background-color: #080b10 !important;
-  color: #d4cfc8;
+  background-color: #060b14 !important;
+  color: #d6d2cc;
   font-family: 'Barlow', 'Trebuchet MS', sans-serif;
   min-height: 100vh;
 }
@@ -22,17 +25,18 @@ h1, h2, h3, h4, h5 {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #080b10;
+  background-color: #060b14;
   background-image:
-    radial-gradient(ellipse at 20% 50%, rgba(200,168,75,0.05) 0%, transparent 55%),
-    radial-gradient(ellipse at 80% 20%, rgba(61,143,196,0.04) 0%, transparent 55%);
+    radial-gradient(ellipse at 20% 50%, rgba(43,123,214,0.07) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 20%, rgba(74,163,232,0.04) 0%, transparent 55%);
 }
 
 .login-box {
-  background: #0e1219;
-  border: 1px solid #1e2530;
+  background: #0b1422;
+  border: 1px solid #192840;
+  border-top: 3px solid #2b7bd6;
   border-radius: 6px;
-  padding: 48px 40px;
+  padding: 40px 36px;
   width: 380px;
 }
 
@@ -40,7 +44,7 @@ h1, h2, h3, h4, h5 {
   font-size: 10px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #5a6070;
+  color: #52637a;
   display: block;
   margin-bottom: 6px;
   font-family: 'Barlow', sans-serif;
@@ -51,8 +55,8 @@ h1, h2, h3, h4, h5 {
 .btn-accent:hover,
 .btn-accent:focus,
 .btn-accent:active {
-  background: #c8a84b !important;
-  color: #080b10 !important;
+  background: #2b7bd6 !important;
+  color: #ffffff !important;
   border: none !important;
   font-weight: 600 !important;
   letter-spacing: 0.1em !important;
@@ -65,8 +69,8 @@ h1, h2, h3, h4, h5 {
 
 /* ── Top Bar ───────────────────────────────────────────────────────────────── */
 .topbar {
-  background: #0e1219;
-  border-bottom: 1px solid #1e2530;
+  background: #0b1422;
+  border-bottom: 2px solid #1a3a64;
   padding: 0 24px;
   position: sticky;
   top: 0;
@@ -80,8 +84,8 @@ h1, h2, h3, h4, h5 {
 
 /* ── Division Banner ───────────────────────────────────────────────────────── */
 .division-banner {
-  background: linear-gradient(90deg, rgba(200,168,75,0.05), transparent 70%);
-  border-bottom: 1px solid #1e2530;
+  background: linear-gradient(90deg, rgba(43,123,214,0.06), transparent 70%);
+  border-bottom: 1px solid #192840;
   padding: 8px 24px;
   min-height: 36px;
   display: flex;
@@ -90,17 +94,17 @@ h1, h2, h3, h4, h5 {
 
 /* ── Cards ─────────────────────────────────────────────────────────────────── */
 .card {
-  background: #0e1219 !important;
-  border: 1px solid #1e2530 !important;
+  background: #0b1422 !important;
+  border: 1px solid #192840 !important;
   border-radius: 4px !important;
-  color: #d4cfc8;
+  color: #d6d2cc;
 }
 
 .card-body { padding: 20px !important; }
 
 .card-header {
   background: transparent !important;
-  border-bottom: 1px solid #1e2530 !important;
+  border-bottom: 1px solid #192840 !important;
   padding: 12px 20px !important;
 }
 
@@ -108,7 +112,7 @@ h1, h2, h3, h4, h5 {
   font-size: 11px !important;
   letter-spacing: 0.12em !important;
   text-transform: uppercase !important;
-  color: #c8a84b !important;
+  color: #2b7bd6 !important;
   font-family: 'Barlow', sans-serif !important;
 }
 
@@ -116,10 +120,10 @@ h1, h2, h3, h4, h5 {
   font-size: 11px !important;
   letter-spacing: 0.2em !important;
   text-transform: uppercase !important;
-  color: #c8a84b !important;
+  color: #2b7bd6 !important;
 }
 
-.card-accent-border { border-left: 3px solid #c8a84b !important; }
+.card-accent-border { border-left: 3px solid #2b7bd6 !important; }
 
 /* ── KPI Row ───────────────────────────────────────────────────────────────── */
 .kpi-row {
@@ -132,15 +136,15 @@ h1, h2, h3, h4, h5 {
 @media (max-width: 800px)  { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
 
 .kpi-card {
-  background: #0e1219;
-  border: 1px solid #1e2530;
+  background: #0b1422;
+  border: 1px solid #192840;
   border-radius: 4px;
   padding: 16px 18px;
 }
 
 .kpi-label {
   font-size: 10px;
-  color: #5a6070;
+  color: #52637a;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   margin-bottom: 6px;
@@ -152,7 +156,7 @@ h1, h2, h3, h4, h5 {
   font-family: 'Playfair Display', serif;
   font-size: 24px;
   line-height: 1.1;
-  color: #d4cfc8;
+  color: #d6d2cc;
 }
 
 .kpi-delta {
@@ -163,9 +167,9 @@ h1, h2, h3, h4, h5 {
 
 .kpi-sub {
   font-size: 10px;
-  color: #5a6070;
+  color: #52637a;
   margin-top: 6px;
-  border-top: 1px solid #1e2530;
+  border-top: 1px solid #192840;
   padding-top: 5px;
   font-family: 'Barlow', sans-serif;
   font-style: italic;
@@ -176,13 +180,13 @@ h1, h2, h3, h4, h5 {
   font-family: 'Playfair Display', serif;
   font-size: 20px;
   font-weight: normal;
-  color: #d4cfc8;
+  color: #d6d2cc;
   margin: 0;
 }
 
 .section-subheader {
   font-size: 13px;
-  color: #5a6070;
+  color: #52637a;
   margin: 0;
   line-height: 1.65;
   font-family: 'Barlow', sans-serif;
@@ -190,7 +194,7 @@ h1, h2, h3, h4, h5 {
 
 .divider-accent {
   height: 1px;
-  background: linear-gradient(90deg, rgba(200,168,75,0.5), transparent);
+  background: linear-gradient(90deg, rgba(43,123,214,0.6), transparent);
   margin: 12px 0 20px;
   border: none;
 }
@@ -208,12 +212,12 @@ h1, h2, h3, h4, h5 {
   line-height: 1.6;
 }
 
-.badge-accent { background:rgba(200,168,75,0.15); color:#c8a84b; border:1px solid rgba(200,168,75,0.3); }
-.badge-blue   { background:rgba(61,143,196,0.15);  color:#3d8fc4; border:1px solid rgba(61,143,196,0.3); }
-.badge-green  { background:rgba(61,187,122,0.15);  color:#3dbb7a; border:1px solid rgba(61,187,122,0.3); }
-.badge-red    { background:rgba(217,95,95,0.15);   color:#d95f5f; border:1px solid rgba(217,95,95,0.3); }
-.badge-amber  { background:rgba(232,160,48,0.15);  color:#e8a030; border:1px solid rgba(232,160,48,0.3); }
-.badge-muted  { background:rgba(90,96,112,0.15);   color:#5a6070; border:1px solid rgba(90,96,112,0.25); }
+.badge-accent { background: rgba(43,123,214,0.15);  color: #2b7bd6; border: 1px solid rgba(43,123,214,0.35); }
+.badge-blue   { background: rgba(74,163,232,0.15);  color: #4aa3e8; border: 1px solid rgba(74,163,232,0.3);  }
+.badge-green  { background: rgba(45,186,122,0.15);  color: #2dba7a; border: 1px solid rgba(45,186,122,0.3);  }
+.badge-red    { background: rgba(217,95,95,0.15);   color: #d95f5f; border: 1px solid rgba(217,95,95,0.3);   }
+.badge-amber  { background: rgba(232,160,48,0.15);  color: #e8a030; border: 1px solid rgba(232,160,48,0.3);  }
+.badge-muted  { background: rgba(82,99,122,0.15);   color: #52637a; border: 1px solid rgba(82,99,122,0.25);  }
 
 /* ── Insight Boxes ─────────────────────────────────────────────────────────── */
 .insight-box {
@@ -222,13 +226,13 @@ h1, h2, h3, h4, h5 {
   margin-top: 10px;
   font-size: 12px;
   line-height: 1.7;
-  color: #d4cfc8;
+  color: #d6d2cc;
 }
 
-.insight-accent { background:rgba(200,168,75,0.07); border-left:3px solid #c8a84b; }
-.insight-green  { background:rgba(61,187,122,0.07); border-left:3px solid #3dbb7a; }
-.insight-red    { background:rgba(217,95,95,0.07);  border-left:3px solid #d95f5f; }
-.insight-amber  { background:rgba(232,160,48,0.07); border-left:3px solid #e8a030; }
+.insight-accent { background: rgba(43,123,214,0.07); border-left: 3px solid #2b7bd6; }
+.insight-green  { background: rgba(45,186,122,0.07); border-left: 3px solid #2dba7a; }
+.insight-red    { background: rgba(217,95,95,0.07);  border-left: 3px solid #d95f5f; }
+.insight-amber  { background: rgba(232,160,48,0.07); border-left: 3px solid #e8a030; }
 
 /* ── Narrative Grid ────────────────────────────────────────────────────────── */
 .narrative-grid {
@@ -244,7 +248,7 @@ h1, h2, h3, h4, h5 {
 
 .narrative-label {
   font-size: 10px;
-  color: #c8a84b;
+  color: #2b7bd6;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   margin-bottom: 8px;
@@ -253,14 +257,14 @@ h1, h2, h3, h4, h5 {
 
 /* ── Navigation Tabs ───────────────────────────────────────────────────────── */
 .nav-tabs {
-  border-bottom: 1px solid #1e2530 !important;
+  border-bottom: 1px solid #192840 !important;
   flex-wrap: nowrap !important;
   overflow-x: auto;
   gap: 0;
 }
 
 .nav-tabs .nav-link {
-  color: #5a6070 !important;
+  color: #52637a !important;
   border: none !important;
   border-bottom: 2px solid transparent !important;
   border-radius: 0 !important;
@@ -274,13 +278,13 @@ h1, h2, h3, h4, h5 {
 }
 
 .nav-tabs .nav-link:hover {
-  color: #9a9488 !important;
-  border-bottom-color: #2e3a48 !important;
+  color: #4aa3e8 !important;
+  border-bottom-color: #1a3a64 !important;
 }
 
 .nav-tabs .nav-link.active {
-  color: #c8a84b !important;
-  border-bottom: 2px solid #c8a84b !important;
+  color: #2b7bd6 !important;
+  border-bottom: 2px solid #2b7bd6 !important;
   background: transparent !important;
 }
 
@@ -288,35 +292,35 @@ h1, h2, h3, h4, h5 {
 
 /* ── Form Controls ─────────────────────────────────────────────────────────── */
 .form-control {
-  background: #0e1219 !important;
-  border: 1px solid #1e2530 !important;
-  color: #d4cfc8 !important;
+  background: #0b1422 !important;
+  border: 1px solid #192840 !important;
+  color: #d6d2cc !important;
   border-radius: 3px !important;
   font-family: 'Barlow', sans-serif !important;
 }
 
 .form-control:focus {
-  border-color: #c8a84b !important;
-  box-shadow: 0 0 0 2px rgba(200,168,75,0.12) !important;
+  border-color: #2b7bd6 !important;
+  box-shadow: 0 0 0 2px rgba(43,123,214,0.15) !important;
   outline: none !important;
 }
 
-.form-control::placeholder { color: #3a3d45 !important; }
+.form-control::placeholder { color: #2a3a50 !important; }
 
 /* ── DataTables ────────────────────────────────────────────────────────────── */
 table.dataTable {
   background: transparent !important;
-  color: #d4cfc8 !important;
+  color: #d6d2cc !important;
   width: 100% !important;
 }
 
 table.dataTable thead th {
-  background: #0e1219 !important;
-  color: #5a6070 !important;
+  background: #0b1422 !important;
+  color: #52637a !important;
   font-size: 10px !important;
   letter-spacing: 0.12em !important;
   text-transform: uppercase !important;
-  border-bottom: 1px solid #1e2530 !important;
+  border-bottom: 1px solid #192840 !important;
   border-top: none !important;
   font-weight: 400 !important;
   padding: 11px 14px !important;
@@ -324,7 +328,7 @@ table.dataTable thead th {
 }
 
 table.dataTable tbody td {
-  border-color: #1e2530 !important;
+  border-color: #192840 !important;
   font-size: 12px !important;
   padding: 11px 14px !important;
   vertical-align: middle !important;
@@ -332,36 +336,48 @@ table.dataTable tbody td {
 }
 
 table.dataTable tbody tr.odd  { background: transparent !important; }
-table.dataTable tbody tr.even { background: rgba(255,255,255,0.015) !important; }
-table.dataTable tbody tr:hover { background: rgba(200,168,75,0.04) !important; }
+table.dataTable tbody tr.even { background: rgba(255,255,255,0.012) !important; }
+table.dataTable tbody tr:hover { background: rgba(43,123,214,0.05) !important; }
+table.dataTable.no-footer { border-bottom: 1px solid #192840 !important; }
 
-table.dataTable.no-footer { border-bottom: 1px solid #1e2530 !important; }
-
-.dataTables_wrapper { color: #5a6070; font-family: 'Barlow', sans-serif; }
-.dataTables_wrapper .dataTables_info { font-size: 11px; color: #5a6070 !important; }
+.dataTables_wrapper { color: #52637a; font-family: 'Barlow', sans-serif; }
+.dataTables_wrapper .dataTables_info { font-size: 11px; color: #52637a !important; }
 .dataTables_wrapper .dataTables_paginate { display: none; }
 
 /* ── Scrollbars ────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #0e1219; }
-::-webkit-scrollbar-thumb { background: #2e3a48; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #3e4a58; }
+::-webkit-scrollbar-track { background: #060b14; }
+::-webkit-scrollbar-thumb { background: #192840; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #253a5a; }
 
 /* ── Portal Footer ─────────────────────────────────────────────────────────── */
 .portal-footer {
   padding: 18px 24px;
-  border-top: 1px solid #1e2530;
+  border-top: 1px solid #192840;
   margin-top: 40px;
-  background: #080b10;
+  background: #060b14;
 }
 
 /* ── Plotly ────────────────────────────────────────────────────────────────── */
 .plotly .modebar { display: none !important; }
 
 /* ── Progress ──────────────────────────────────────────────────────────────── */
-.progress { background: #1e2530 !important; height: 4px !important; border-radius: 2px; }
-.progress-bar { background: #c8a84b !important; }
-.shiny-busy-indicator-bar { background: #c8a84b !important; }
+.progress { background: #192840 !important; height: 4px !important; border-radius: 2px; }
+.progress-bar { background: #2b7bd6 !important; }
+.shiny-busy-indicator-bar { background: #2b7bd6 !important; }
+
+/* ── Shaw Logo ─────────────────────────────────────────────────────────────── */
+.shaw-logo {
+  filter: brightness(1.05) saturate(0.9);
+  object-fit: contain;
+}
 
 /* ── Shiny output loading ──────────────────────────────────────────────────── */
 .shiny-bound-output.recalculating { opacity: 0.5; }
+
+/* ── Division button active state ──────────────────────────────────────────── */
+.division-btn.active-div {
+  color: #2b7bd6 !important;
+  border-color: #2b7bd6 !important;
+  background: rgba(43,123,214,0.12) !important;
+}
