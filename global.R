@@ -614,8 +614,15 @@ ASSUMPTIONS <- tibble(
 
 # ── Scenarios ─────────────────────────────────────────────────────────────────
 build_scenario <- function(rev, em) {
-  tibble(year = c("2024A","2025E","2026E","2027E","2028E"),
-         revenue_m = rev, ebitda_margin = em, ebitda_m = round(rev * em / 100))
+  # 2024A: closed fiscal year, analyst estimate of actuals
+  # 2025A*: closed fiscal year, analyst estimate — Shaw (private) has not reported
+  # 2026E–2028E: forward projections
+  tibble(
+    year          = c("2024A", "2025A*", "2026E", "2027E", "2028E"),
+    revenue_m     = rev,
+    ebitda_margin = em,
+    ebitda_m      = round(rev * em / 100)
+  )
 }
 SCENARIOS <- list(
   base      = build_scenario(c(6200,6520,6820,7160,7530), c(11.0,11.5,12.0,12.5,13.0)),

@@ -1409,9 +1409,12 @@ server <- function(input, output, session) {
   })
   
   output$scenario_rev_note <- renderUI({
-    data_note_ui(
-      "Revenue figures are analyst estimates. Shaw Industries (Berkshire Hathaway subsidiary) does not publicly report standalone revenue or EBITDA. EBITDA margins are modeled from public-company industry peers."
-    )
+    data_note_ui(paste0(
+      "2024A and 2025A* = analyst estimates of closed fiscal years. ",
+      "Shaw Industries (Berkshire Hathaway subsidiary) does not publicly report ",
+      "standalone revenue or EBITDA. 2026E\u20132028E = forward projections. ",
+      "EBITDA margins modeled from public-company industry peers (MHK, AWI, TILE)."
+    ))
   })
   
   output$scenario_ebitda_chart <- renderPlotly({
@@ -1433,24 +1436,53 @@ server <- function(input, output, session) {
         em_pct  = round(ebitda_m / revenue_m * 100, 1),
         rev_fmt = paste0("$", format(revenue_m, big.mark = ",")),
         gr_fmt  = ifelse(is.na(growth), "\u2014",
-                         paste0(ifelse(growth >= 0, "+", ""), sprintf("%.1f%%", growth))),
+                         paste0(ifelse(growth >= 0, "+", ""),
+                                sprintf("%.1f%%", growth))),
         em_fmt  = paste0(ebitda_margin, "%"),
         eb_fmt  = paste0("$", format(ebitda_m, big.mark = ",")),
         epm_fmt = paste0(em_pct, "%")
-      ) |>
+      )
+    
+    # Save color vector BEFORE building display tibble — never put it in d_disp.
+    # Column names starting with _ cause dplyr select() to silently malform the
+    # tibble, which DT then rejects entirely ("No matching records found").
+    gr_colors <- case_when(
+      is.na(d$growth) ~ PAL$muted,
+      d$growth >= 0   ~ PAL$green,
+      TRUE            ~ PAL$red
+    )
+    
+    d_disp <- d |>
       select(year, rev_fmt, gr_fmt, em_fmt, eb_fmt, epm_fmt)
-    names(d) <- c("Year","Revenue ($M est.)","YoY Growth","EBITDA Margin","EBITDA ($M est.)","EBITDA/Rev")
-    datatable(d, rownames = FALSE,
-              options = list(dom = "t", ordering = FALSE,
-                             columnDefs = list(list(className = "dt-left", targets = "_all"))),
-              style = "auto") |>
-      formatStyle("YoY Growth",
-                  color = JS(paste0(
-                    "function(v){",
-                    "if(v==='\u2014') return '", PAL$muted, "';",
-                    "return v.startsWith('+') ? '", PAL$green, "' : '", PAL$red, "';",
-                    "}"
-                  )))
+    
+    names(d_disp) <- c(
+      "Year", "Revenue ($M est.)", "YoY Growth",
+      "EBITDA Margin", "EBITDA ($M est.)", "EBITDA/Rev"
+    )
+    
+    datatable(
+      d_disp,
+      rownames = FALSE,
+      options  = list(
+        dom        = "t",
+        ordering   = FALSE,
+        columnDefs = list(
+          list(className = "dt-left", targets = "_all")
+        )
+      )
+    ) |>
+      formatStyle(
+        columns = "YoY Growth",
+        color   = styleEqual(
+          levels = d_disp[["YoY Growth"]],
+          values = gr_colors
+        )
+      ) |>
+      formatStyle(
+        columns    = names(d_disp),
+        color      = PAL$text,
+        background = "transparent"
+      )
   })
   
   output$leading_indicators <- renderUI({
