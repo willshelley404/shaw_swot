@@ -111,6 +111,7 @@ FRED_SERIES <- list(
   ppi_fiber      = list(id = "WPU0713",          freq = "m", agg = "avg"),  # Synthetic Fibers
   cpi            = list(id = "CPIAUCSL",         freq = "m", agg = "avg"),
   construction   = list(id = "TTLCONS",          freq = "m", agg = "avg"),
+  fed_proj_1yr  = list(id = "FEDTARC1",          freq = "q", agg = "end"),   # FOMC dot plot 1-yr ahead median
   freight_ppi    = list(id = "PCU484121484121",  freq = "m", agg = "avg")   # monthly through Jan 2026
 )
 
@@ -139,6 +140,10 @@ fetch_fred_data <- function(start = "2019-01-01") {
       macro[[nm]] <- NA_real_
     }
   }
+  # Step-hold quarterly SEP projections to monthly — a step-hold is more honest
+  # than linear interpolation since the projection doesn't update between meetings.
+  if ("fed_proj_1yr" %in% names(macro) && any(!is.na(macro$fed_proj_1yr)))
+    macro <- macro |> tidyr::fill(fed_proj_1yr, .direction = "down")
   # ppi_resins is the canonical input cost column; alias to ppi_plastics for chart compat
   if ("ppi_resins" %in% names(macro) && !"ppi_plastics" %in% names(macro))
     macro <- rename(macro, ppi_plastics = ppi_resins)

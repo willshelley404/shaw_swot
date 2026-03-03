@@ -264,17 +264,17 @@ server <- function(input, output, session) {
   
   output$exec_primary_chart_title <- renderUI({
     switch(rv$division,
-           Residential = tags$span("Residential Demand — Housing Starts & Shaw Rev Est. (YoY %) \u2022 30-Yr Mortgage (level %, right axis)"),
-           Commercial  = tags$span("Commercial Demand — Construction & Shaw Rev Est. (YoY %) \u2022 Fed Funds (level %, right axis)"),
-           Turf        = tags$span("Turf Demand — Construction & CPI (YoY %) \u2022 Fed Funds (level %, right axis)")
+           Residential = tags$span("Residential Demand — Housing Starts & Shaw Rev Est. (YoY %) \u2022 30-Yr Mortgage actual + FOMC implied fwd (level %, right axis)"),
+           Commercial  = tags$span("Commercial Demand — Construction & Shaw Rev Est. (YoY %) \u2022 Fed Funds actual + FOMC 1-yr dot plot (level %, right axis)"),
+           Turf        = tags$span("Turf Demand — Construction & CPI (YoY %) \u2022 Fed Funds actual + FOMC 1-yr dot plot (level %, right axis)")
     )
   })
   
   output$exec_secondary_chart_title <- renderUI({
     switch(rv$division,
-           Residential = tags$span("Input Costs — PPI Resins, Fibers & Freight (YoY %) \u2022 Fed Funds (level %, right axis)"),
-           Commercial  = tags$span("Input & Rate Environment — Construction & Freight (YoY %) \u2022 Fed Funds (level %, right axis)"),
-           Turf        = tags$span("Turf Cost Drivers — Construction, CPI & Freight (YoY %) \u2022 Fed Funds (level %, right axis)")
+           Residential = tags$span("Input Costs — PPI Resins, Fibers & Freight (YoY %) \u2022 Fed Funds level (right axis)"),
+           Commercial  = tags$span("Input & Rate Environment — Construction & Freight (YoY %) \u2022 Fed Funds level (right axis)"),
+           Turf        = tags$span("Turf Cost Drivers — Construction, CPI & Freight (YoY %) \u2022 Fed Funds level (right axis)")
     )
   })
   
@@ -289,11 +289,34 @@ server <- function(input, output, session) {
     out
   }
   
+  # ── Lag correlation: 30-yr mortgage (lead) vs housing starts (follow) ───────
+  # 9-month lead chosen from academic literature on mortgage rate → housing permit
+  # → start transmission lag (Kearl 1979; Glaeser et al. 2008; FRBSF 2022).
+  # Trailing 48-month window captures a full rate cycle without over-anchoring to
+  # the 2020 COVID distortion. Used in exec_rev_insight callout and chart note.
+  lag_cor_res <- reactive({
+    req(rv$macro)
+    d     <- macro() |> arrange(date) |> filter(!is.na(housing_starts), !is.na(mortgage_30))
+    lag_n <- 9L
+    if (nrow(d) < lag_n + 13L) return(list(r = NA_real_, r_sq = NA_real_))
+    win  <- min(nrow(d) - lag_n, 48L)
+    x_hs <- tail(d$housing_starts, win)
+    y_m  <- d$mortgage_30[(nrow(d) - win - lag_n + 1L):(nrow(d) - lag_n)]
+    r_val <- suppressWarnings(cor(x_hs, y_m, use = "complete.obs"))
+    if (is.na(r_val)) return(list(r = NA_real_, r_sq = NA_real_))
+    list(r = round(r_val, 2), r_sq = round(r_val^2 * 100, 0))
+  })
+  
   # ── exec_rev_housing ────────────────────────────────────────────────────────
   # Dual y-axis layout:
   #   Left  (y1) — YoY % change: Shaw Rev Est., Housing Starts, Construction, CPI
-  #   Right (y2) — Rate level %: 30-Yr Mortgage (Residential) or Fed Funds (others)
-  # Mortgage/Fed Funds as levels are far more decision-relevant than their YoY delta.
+  #   Right (y2) — Rate level %:
+  #     Residential: 30-Yr Mortgage actual (solid) + implied fwd from FOMC (dashed)
+  #                  Implied = FEDTARC1 (1-yr dot plot) + 250 bps historical spread
+  #     Commercial/Turf: Fed Funds actual (solid) + FEDTARC1 1-yr projection (dashed)
+  # FEDTARC1 is quarterly (SEP meetings); step-held to monthly in global.R via fill().
+  # Guard: if FEDTARC1 not available (no API key / series returns NULL), projection
+  # traces are silently skipped — chart still renders with actual data only.
   output$exec_rev_housing <- renderPlotly({
     d <- macro() |> arrange(date)
     
@@ -301,51 +324,57 @@ server <- function(input, output, session) {
       shaw_yoy   = yoy_pct(shaw_rev_est),
       houst_yoy  = yoy_pct(housing_starts),
       constr_yoy = yoy_pct(construction),
-      cpi_yoy    = yoy_pct(cpi)
-      # mortgage_30 and fed_funds used as LEVELS — no yoy_pct transform
+      cpi_yoy    = yoy_pct(cpi),
+      # Implied forward 30-yr = FOMC 1-yr projection + 250 bps (historical spread range: 220–280 bps)
+      implied_mort_fwd = if ("fed_proj_1yr" %in% names(d) && any(!is.na(d$fed_proj_1yr)))
+        fed_proj_1yr + 2.5 else NA_real_
     )
     
     d <- d |> filter(!is.na(shaw_yoy))
     
-    last_fred_date <- suppressWarnings(
-      max(d$date[!is.na(d$housing_starts)], na.rm = TRUE)
-    )
+    # Guard flag — only add projection traces if FEDTARC1 data was actually fetched
+    has_proj     <- "fed_proj_1yr" %in% names(d) && any(!is.na(d$fed_proj_1yr))
+    has_mort_fwd <- "implied_mort_fwd" %in% names(d) && any(!is.na(d$implied_mort_fwd))
+    
+    last_fred_date <- suppressWarnings(max(d$date[!is.na(d$housing_starts)], na.rm = TRUE))
     if (is.infinite(last_fred_date)) last_fred_date <- max(d$date)
     
     d_actual <- d |> filter(date <= last_fred_date)
     d_proj   <- d |> filter(date >= last_fred_date)
     
-    # Shared x-axis (date type, quarterly ticks)
+    # Shared axis definitions
     date_xaxis <- list(
       type = "date", dtick = "M3", tickformat = "%b '%y",
       tickangle = -30, gridcolor = PAL$border, zeroline = FALSE,
       tickfont = list(color = PAL$muted, size = 10)
     )
-    # Left y-axis — YoY %
     yax_left <- list(
-      title     = list(text = "YoY % Change", font = list(size = 9, color = PAL$muted)),
+      title      = list(text = "YoY % Change", font = list(size = 9, color = PAL$muted)),
       ticksuffix = "%", gridcolor = PAL$border, zeroline = TRUE,
       zerolinecolor = PAL$border, zerolinewidth = 1,
-      tickfont  = list(color = PAL$muted, size = 10)
-    )
-    # Right y-axis — Rate level (overlaid, no grid to avoid double grid lines)
-    yax_right <- function(title_text, line_color) list(
-      title      = list(text = title_text, font = list(size = 9, color = line_color)),
-      overlaying = "y", side = "right",
-      ticksuffix = "%", showgrid = FALSE, zeroline = FALSE,
-      tickfont   = list(color = line_color, size = 10),
-      # auto-range but anchor around typical rate range (3–8%)
-      rangemode  = "normal"
+      tickfont   = list(color = PAL$muted, size = 10)
     )
     zero_shape <- list(list(
       type = "line", x0 = 0, x1 = 1, xref = "paper", y0 = 0, y1 = 0,
       line = list(color = PAL$border, width = 1, dash = "dot")
     ))
+    legend_cfg <- list(bgcolor = "rgba(0,0,0,0)", font = list(color = PAL$muted, size = 10),
+                       orientation = "h", y = -0.28)
     
     if (rv$division == "Residential") {
-      # Left axis:  Shaw Rev Est. YoY, Housing Starts YoY
-      # Right axis: 30-Yr Mortgage LEVEL (actionable; 6% vs 7% matters more than the delta)
-      plot_ly() |>
+      
+      yax_right_mort <- list(
+        title      = list(
+          text = if (has_mort_fwd) "Mortgage Rate %: actual (solid) / FOMC implied fwd (dashed) \u2192"
+          else "30-Yr Mortgage Rate (%) \u2192",
+          font = list(size = 9, color = PAL$amber)
+        ),
+        overlaying = "y", side = "right",
+        ticksuffix = "%", showgrid = FALSE, zeroline = FALSE,
+        tickfont   = list(color = PAL$amber, size = 10), rangemode = "normal"
+      )
+      
+      p <- plot_ly() |>
         add_lines(data = d_actual, x = ~date, y = ~shaw_yoy,
                   name = "Shaw Rev Est. YoY \u2605",
                   line = list(color = PAL$accent, width = 2.5),
@@ -358,26 +387,43 @@ server <- function(input, output, session) {
                   name = "Housing Starts YoY (HOUST)",
                   line = list(color = PAL$blue, width = 2),
                   hovertemplate = "%{x|%b '%y}: %{y:+.1f}%<extra>HOUST YoY</extra>") |>
-        # RIGHT AXIS — mortgage level
         add_lines(data = d, x = ~date, y = ~mortgage_30,
                   name = "30-Yr Mortgage % (level \u2192)",
                   yaxis = "y2",
-                  line = list(color = PAL$amber, width = 1.8, dash = "dash"),
-                  hovertemplate = "%{x|%b '%y}: %{y:.2f}%<extra>MORTGAGE30US level</extra>") |>
-        plotly_dark(xlab = "", ylab = "YoY % Change") |>
-        layout(
-          xaxis  = date_xaxis,
-          yaxis  = yax_left,
-          yaxis2 = yax_right("30-Yr Mortgage Rate (%)", PAL$amber),
-          shapes = zero_shape,
-          legend = list(bgcolor = "rgba(0,0,0,0)", font = list(color = PAL$muted, size = 10),
-                        orientation = "h", y = -0.22)
-        )
+                  line = list(color = PAL$amber, width = 2),
+                  hovertemplate = "%{x|%b '%y}: %{y:.2f}%<extra>MORTGAGE30US level</extra>")
+      
+      # FOMC implied forward mortgage — only if FEDTARC1 fetched successfully
+      if (has_mort_fwd)
+        p <- p |>
+        add_lines(data = d, x = ~date, y = ~implied_mort_fwd,
+                  name = "Implied Fwd Mortgage (FOMC +250\u00a0bps \u2192)",
+                  yaxis = "y2",
+                  line = list(color = PAL$amber, width = 1.4, dash = "dash"),
+                  hovertemplate = paste0(
+                    "%{x|%b '%y}: %{y:.2f}% (implied)<br>",
+                    "<i>FEDTARC1 + 250 bps spread</i>",
+                    "<extra>FOMC implied fwd mortgage</extra>"
+                  ))
+      
+      p |> plotly_dark(xlab = "", ylab = "YoY % Change") |>
+        layout(xaxis = date_xaxis, yaxis = yax_left, yaxis2 = yax_right_mort,
+               shapes = zero_shape, legend = legend_cfg)
       
     } else if (rv$division == "Commercial") {
-      # Left axis:  Shaw Rev Est. YoY, Construction Spend YoY
-      # Right axis: Fed Funds LEVEL (project finance hurdle rate — level more useful than delta)
-      plot_ly() |>
+      
+      yax_right_ff <- list(
+        title      = list(
+          text = if (has_proj) "Fed Funds %: actual (solid) / FOMC 1-yr proj. (dashed) \u2192"
+          else "Fed Funds Rate (%) \u2192",
+          font = list(size = 9, color = PAL$green)
+        ),
+        overlaying = "y", side = "right",
+        ticksuffix = "%", showgrid = FALSE, zeroline = FALSE,
+        tickfont   = list(color = PAL$green, size = 10), rangemode = "normal"
+      )
+      
+      p <- plot_ly() |>
         add_lines(data = d_actual, x = ~date, y = ~shaw_yoy,
                   name = "Shaw Rev Est. YoY \u2605",
                   line = list(color = PAL$accent, width = 2.5),
@@ -390,26 +436,42 @@ server <- function(input, output, session) {
                   name = "Construction Spend YoY (TTLCONS)",
                   line = list(color = PAL$blue, width = 2),
                   hovertemplate = "%{x|%b '%y}: %{y:+.1f}%<extra>TTLCONS YoY</extra>") |>
-        # RIGHT AXIS — Fed Funds level
         add_lines(data = d, x = ~date, y = ~fed_funds,
                   name = "Fed Funds % (level \u2192)",
                   yaxis = "y2",
-                  line = list(color = PAL$green, width = 1.8, dash = "dash"),
-                  hovertemplate = "%{x|%b '%y}: %{y:.2f}%<extra>FEDFUNDS level</extra>") |>
-        plotly_dark(xlab = "", ylab = "YoY % Change") |>
-        layout(
-          xaxis  = date_xaxis,
-          yaxis  = yax_left,
-          yaxis2 = yax_right("Fed Funds Rate (%)", PAL$green),
-          shapes = zero_shape,
-          legend = list(bgcolor = "rgba(0,0,0,0)", font = list(color = PAL$muted, size = 10),
-                        orientation = "h", y = -0.22)
-        )
+                  line = list(color = PAL$green, width = 2),
+                  hovertemplate = "%{x|%b '%y}: %{y:.2f}%<extra>FEDFUNDS level</extra>")
+      
+      if (has_proj)
+        p <- p |>
+        add_lines(data = d, x = ~date, y = ~fed_proj_1yr,
+                  name = "FOMC 1-Yr Projection (dot plot \u2192)",
+                  yaxis = "y2",
+                  line = list(color = PAL$green, width = 1.4, dash = "dash"),
+                  hovertemplate = paste0(
+                    "%{x|%b '%y}: %{y:.2f}% (FOMC proj.)<br>",
+                    "<i>SEP median, step-held monthly</i>",
+                    "<extra>FEDTARC1</extra>"
+                  ))
+      
+      p |> plotly_dark(xlab = "", ylab = "YoY % Change") |>
+        layout(xaxis = date_xaxis, yaxis = yax_left, yaxis2 = yax_right_ff,
+               shapes = zero_shape, legend = legend_cfg)
       
     } else {   # Turf
-      # Left axis:  Shaw Rev Est. YoY, Construction Spend YoY, CPI YoY
-      # Right axis: Fed Funds level (relevant for muni project financing costs)
-      plot_ly() |>
+      
+      yax_right_turf <- list(
+        title      = list(
+          text = if (has_proj) "Fed Funds %: actual (solid) / FOMC 1-yr proj. (dashed) \u2192"
+          else "Fed Funds Rate (%) \u2192",
+          font = list(size = 9, color = PAL$amber)
+        ),
+        overlaying = "y", side = "right",
+        ticksuffix = "%", showgrid = FALSE, zeroline = FALSE,
+        tickfont   = list(color = PAL$amber, size = 10), rangemode = "normal"
+      )
+      
+      p <- plot_ly() |>
         add_lines(data = d_actual, x = ~date, y = ~shaw_yoy,
                   name = "Shaw Rev Est. YoY \u2605",
                   line = list(color = PAL$accent, width = 2.5),
@@ -426,31 +488,87 @@ server <- function(input, output, session) {
                   name = "CPI YoY (CPIAUCSL)",
                   line = list(color = PAL$muted, width = 1.5, dash = "dash"),
                   hovertemplate = "%{x|%b '%y}: %{y:+.1f}%<extra>CPI YoY</extra>") |>
-        # RIGHT AXIS — Fed Funds level
         add_lines(data = d, x = ~date, y = ~fed_funds,
                   name = "Fed Funds % (level \u2192)",
                   yaxis = "y2",
-                  line = list(color = PAL$amber, width = 1.8, dash = "dot"),
-                  hovertemplate = "%{x|%b '%y}: %{y:.2f}%<extra>FEDFUNDS level</extra>") |>
-        plotly_dark(xlab = "", ylab = "YoY % Change") |>
-        layout(
-          xaxis  = date_xaxis,
-          yaxis  = yax_left,
-          yaxis2 = yax_right("Fed Funds Rate (%)", PAL$amber),
-          shapes = zero_shape,
-          legend = list(bgcolor = "rgba(0,0,0,0)", font = list(color = PAL$muted, size = 10),
-                        orientation = "h", y = -0.22)
-        )
+                  line = list(color = PAL$amber, width = 2),
+                  hovertemplate = "%{x|%b '%y}: %{y:.2f}%<extra>FEDFUNDS level</extra>")
+      
+      if (has_proj)
+        p <- p |>
+        add_lines(data = d, x = ~date, y = ~fed_proj_1yr,
+                  name = "FOMC 1-Yr Projection (dot plot \u2192)",
+                  yaxis = "y2",
+                  line = list(color = PAL$amber, width = 1.4, dash = "dash"),
+                  hovertemplate = paste0(
+                    "%{x|%b '%y}: %{y:.2f}% (FOMC proj.)<br>",
+                    "<i>SEP median, step-held monthly</i>",
+                    "<extra>FEDTARC1</extra>"
+                  ))
+      
+      p |> plotly_dark(xlab = "", ylab = "YoY % Change") |>
+        layout(xaxis = date_xaxis, yaxis = yax_left, yaxis2 = yax_right_turf,
+               shapes = zero_shape, legend = legend_cfg)
     }
   })
   
   output$exec_rev_insight <- renderUI({
-    txt <- switch(rv$division,
-                  Residential = "Housing starts and Shaw revenue track closely with a ~1-quarter lag (r \u2248 0.87 modeled). The 2022\u201323 housing decline drove the revenue compression; the 2024\u201325 recovery is visible in both series. Mortgage rate YoY is now improving \u2014 rates are still high in level terms but the rate of change has flipped positive for demand.",
-                  Commercial  = "Construction spending YoY is the best forward proxy for Shaw's commercial division. The 2025 recovery in both series is visible. ABI crossing 50 in late 2025 implies continued construction spend growth through H1\u2013H2 2026.",
-                  Turf        = "Turf demand is less correlated with CPI or construction spend YoY than residential \u2014 the primary driver is infrastructure budget cycles and synthetic turf replacement schedules (~8\u201310 yr life). Shaw Rev Est. YoY serves as a portfolio-level proxy."
+    # ── Lag correlation callout (Residential only) ─────────────────────────
+    # Shows rolling 48-month Pearson r between 30-yr mortgage (9-month lead)
+    # and housing starts. Gives the CEO a single statistical anchor for why
+    # the mortgage level trace belongs on the chart.
+    cor_callout <- if (rv$division == "Residential") {
+      lc <- lag_cor_res()
+      if (!is.na(lc$r))
+        div(style = paste0("margin-top:10px; padding:10px 14px; ",
+                           "border-top:1px solid ", PAL$border, "; ",
+                           "border-left:3px solid ", PAL$gold, ";"),
+            tags$span(style = paste0("font-size:10px; color:", PAL$gold,
+                                     "; font-weight:bold; letter-spacing:0.1em;",
+                                     " text-transform:uppercase;"),
+                      "Lag Correlation \u2014 trailing 48\u00a0mo. | "),
+            tags$span(style = paste0("font-size:11px; color:", PAL$text, ";"),
+                      paste0("HOUST vs. 30-yr mortgage lagged 9\u00a0months: ",
+                             "r\u00a0=\u00a0", lc$r, "  |  ",
+                             "R\u00b2\u00a0\u2248\u00a0", lc$r_sq, "% \u2014 ",
+                             "mortgage rate level explains ~", lc$r_sq,
+                             "% of housing starts variance in this window. ",
+                             "Implied fwd mortgage (FOMC dot plot +\u00a0250\u00a0bps) ",
+                             "gives a forward read on when that drag lifts. ",
+                             "At ~5.5% the refi/purchase threshold historically unlocks."
+                      )
+            )
+        )
+    } else NULL
+    
+    base_txt <- switch(rv$division,
+                       Residential = paste0(
+                         "Housing starts and Shaw revenue track closely with a ~1-quarter lag (r\u00a0\u2248\u00a00.87 modeled). ",
+                         "The 2022\u201323 decline drove revenue compression; the 2024\u201325 recovery is visible in both series. ",
+                         "Right axis: 30-yr mortgage actual level (solid amber) and implied forward rate from ",
+                         "FOMC 1-yr dot-plot + 250\u00a0bps historical spread (dashed). ",
+                         "Watch implied fwd for the \u22645.5% unlock threshold."
+                       ),
+                       Commercial = paste0(
+                         "Construction spending YoY is the best forward proxy for Shaw's commercial division. ",
+                         "The 2025 recovery in both series is visible; ABI crossing 50 in late 2025 implies ",
+                         "continued growth through H1\u2013H2 2026. ",
+                         "Right axis: Fed Funds actual (solid) and FOMC 1-yr dot-plot projection (dashed) \u2014 ",
+                         "the gap between them signals whether market pricing is ahead of or behind Fed guidance. ",
+                         "A downward-stepping projection directly reduces commercial project hurdle rates."
+                       ),
+                       Turf = paste0(
+                         "Turf demand is less correlated with CPI or construction spend than residential \u2014 ",
+                         "primary driver is infrastructure budget cycles and turf replacement schedules (~8\u201310\u00a0yr). ",
+                         "Right axis: Fed Funds actual and FOMC 1-yr projection \u2014 relevant for muni ",
+                         "project financing cost and bond-funded stadium/parks capital programs."
+                       )
     )
-    insight_box(txt, "accent", "Chart Note")
+    
+    tagList(
+      insight_box(base_txt, "accent", "Chart Note"),
+      cor_callout
+    )
   })
   
   output$exec_rev_note <- renderUI({
@@ -1414,31 +1532,75 @@ server <- function(input, output, session) {
   
   factbase_data <- reactive({
     d <- FACT_BASE_STATIC
+    
     if (rv$using_live && !is.null(rv$macro)) {
-      m    <- tail(rv$macro, 1)
+      m <- rv$macro |> arrange(date)
+      
+      # BUG FIX: tail(rv$macro, 1) often has NAs because FRED series publish on
+      # different lags. Pull the last non-NA observation for each column individually.
+      last_val <- function(col) {
+        v <- m[[col]]
+        v <- v[!is.na(v)]
+        if (length(v) == 0) NA_real_ else tail(v, 1)
+      }
+      last_date_for <- function(col) {
+        rows <- m[!is.na(m[[col]]), ]
+        if (nrow(rows) == 0) Sys.Date() else tail(rows$date, 1)
+      }
+      
+      # Series name → list(value_string, date_of_last_obs)
+      # Keys must EXACTLY match FACT_BASE_STATIC$series column
       live <- list(
-        "Housing Starts: Total (HOUST)"                      = paste0(round(m$housing_starts), "k SAAR"),
-        "30-Yr Fixed Mortgage Rate (MORTGAGE30US)"           = paste0(round(m$mortgage_30, 2), "%"),
-        "Federal Funds Effective Rate (FEDFUNDS)"            = paste0(round(m$fed_funds, 2), "%"),
-        "Total Construction Spending (TTLCONS)"              = paste0("$", round(m$construction), "B ann."),
-        "PPI: Plastics Materials & Resins (WPU0911)"         = as.character(round(m$ppi_plastics, 1)),
-        "PPI: Long-Dist. Freight Trucking (PCU484121484121)" = as.character(round(m$freight_ppi, 1)),
-        "CPI: All Urban Consumers (CPIAUCSL)"                = as.character(round(m$cpi, 1))
+        "Housing Starts: Total (HOUST)" = list(
+          val  = paste0(format(round(last_val("housing_starts")), big.mark = ","), "k SAAR"),
+          dt   = last_date_for("housing_starts")
+        ),
+        "30-Yr Fixed Mortgage Rate (MORTGAGE30US)" = list(
+          val  = paste0(round(last_val("mortgage_30"), 2), "%"),
+          dt   = last_date_for("mortgage_30")
+        ),
+        "Federal Funds Effective Rate (FEDFUNDS)" = list(
+          val  = paste0(round(last_val("fed_funds"), 2), "%"),
+          dt   = last_date_for("fed_funds")
+        ),
+        "Total Construction Spending (TTLCONS)" = list(
+          val  = paste0("$", round(last_val("construction") / 1000, 1), "T ann."),
+          dt   = last_date_for("construction")
+        ),
+        "PPI: Plastics Mat. & Resins (WPU0911)" = list(
+          val  = as.character(round(last_val("ppi_plastics"), 1)),
+          dt   = last_date_for("ppi_plastics")
+        ),
+        "PPI: Long-Dist. Freight Trucking (PCU484121484121)" = list(
+          val  = as.character(round(last_val("freight_ppi"), 1)),
+          dt   = last_date_for("freight_ppi")
+        ),
+        "CPI: All Urban Consumers (CPIAUCSL)" = list(
+          val  = as.character(round(last_val("cpi"), 1)),
+          dt   = last_date_for("cpi")
+        )
       )
+      
       for (nm in names(live)) {
         idx <- which(d$series == nm)
-        if (length(idx) > 0 && !is.na(live[[nm]])) {
-          d$value[idx]  <- live[[nm]]
-          d$note[idx]   <- paste0("Live FRED — ", format(Sys.Date(), "%b %d %Y"))
-          d$period[idx] <- paste0("Latest FRED as of ", format(Sys.Date(), "%b %Y"))
+        v   <- live[[nm]]$val
+        dt  <- live[[nm]]$dt
+        if (length(idx) > 0 && !is.na(v) && v != "NA" && v != "NA%") {
+          d$value[idx]  <- v
+          d$note[idx]   <- paste0("Live FRED \u2014 as of ", format(dt, "%b %d %Y"))
+          d$period[idx] <- format(dt, "%b %Y")
         }
       }
     }
+    
     if (rv$using_equity && !is.null(rv$equity)) {
+      # BUG FIX: keys must exactly match FACT_BASE_STATIC$series — no extra suffixes.
+      # Previous keys had " — Public competitor" / " — Adjacent public" appended,
+      # causing which(d$series == series_nm) to always return integer(0).
       eq_map <- list(
-        "Mohawk Industries (MHK) — Public competitor"   = "MHK",
-        "Interface Inc. (TILE) — Public competitor"     = "TILE",
-        "Armstrong World Ind. (AWI) — Adjacent public"  = "AWI"
+        "Mohawk Industries (MHK)"    = "MHK",
+        "Interface Inc. (TILE)"      = "TILE",
+        "Armstrong World Ind. (AWI)" = "AWI"
       )
       for (series_nm in names(eq_map)) {
         tk  <- eq_map[[series_nm]]
@@ -1447,10 +1609,11 @@ server <- function(input, output, session) {
           idx <- which(d$series == series_nm)
           if (length(idx) > 0) {
             d$value[idx]  <- paste0("$", smr$last_close)
-            d$change[idx] <- paste0(ifelse(smr$ytd_chg_pct >= 0, "+", ""), smr$ytd_chg_pct, "% YTD")
-            d$period[idx] <- paste0("Live — ", smr$last_date)
-            d$note[idx]   <- paste0("Live via tidyquant/Yahoo Finance. 52-wk: $",
-                                    smr$low_52wk, "\u2013$", smr$high_52wk)
+            d$change[idx] <- paste0(ifelse(smr$ytd_chg_pct >= 0, "+", ""),
+                                    smr$ytd_chg_pct, "% YTD")
+            d$period[idx] <- paste0("Live \u2014 ", smr$last_date)
+            d$note[idx]   <- paste0("Live via tidyquant/Yahoo Finance. ",
+                                    "52-wk: $", smr$low_52wk, "\u2013$", smr$high_52wk)
           }
         }
       }
