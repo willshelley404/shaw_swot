@@ -56,7 +56,9 @@ ui <- fluidPage(
               uiOutput("login_api_status"),
               tags$p(style = paste0("font-size:10px; text-align:center; color:", PAL$muted,
                                     "; margin-top:8px;"),
-                     "Demo: shaw / ELT2025  |  analyst / Shaw2025")
+                     markdown("username: *demo* "),
+                     markdown("password: *demo* "),
+                     markdown("**NOTE: This password is for temporary acccess only and will expire soon.**"))
           )
       )
   ),
