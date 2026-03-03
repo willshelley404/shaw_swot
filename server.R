@@ -615,8 +615,7 @@ server <- function(input, output, session) {
       subtitle = paste0(
         "Evidence-based SWOT with leading indicators and risk probability scoring. ",
         "Evidence is sourced from public SEC filings, FRED data, and trade press. ",
-        "Risk probability reflects analyst judgement of materialization likelihood within 12 months. ",
-        "Note: Shaw and Engineered Floors are separate, independent companies."
+        "Risk probability reflects analyst judgement of materialization likelihood within 12 months."
       ),
       badge_text = "Evidence-Based"
     )
@@ -1157,10 +1156,8 @@ server <- function(input, output, session) {
     )
   })
   
-  # FIX 4: Engineered Floors is a SEPARATE, INDEPENDENT company.
-  # Original note said "Effectively a Shaw-aligned entity" — this is incorrect.
-  # Engineered Floors was founded in 2010 by Jim Bethel, formerly Shaw's CEO.
-  # It is a direct competitor to Shaw, not an affiliate or aligned entity.
+  # FIX 4: Engineered Floors.
+
   output$competitive_intel <- renderUI({
     intel <- list(
       list(co = "Mohawk Industries (MHK) — NYSE: MHK", st = "yellow",
@@ -1173,8 +1170,7 @@ server <- function(input, output, session) {
            note = "2023 Annual Report: ~\u20AC2.9B revenue. European LVT leader with growing U.S. presence. Private label flooring segments competing on price. Monitor Census HS 3918 import volumes."),
       list(co = "Engineered Floors — private, independent competitor", st = "red",
            note = paste0(
-             "SEPARATE, INDEPENDENT COMPANY — not affiliated with Shaw Industries. ",
-             "Founded 2010 by Jim Bethel, formerly Shaw Industries CEO. Headquartered Dalton, GA. ",
+             "Founded 2010 by Jim Bethel Shaw, formerly Shaw Industries CEO. Headquartered Dalton, GA. ",
              "Focused on polyester-optimized residential carpet manufacturing. Est. $1.5–2B revenue. ",
              "Direct Shaw competitor in mid-market residential carpet. No public financials. ",
              "Monitor via Floor Covering Weekly market share data and trade press."
