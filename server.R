@@ -763,9 +763,13 @@ server <- function(input, output, session) {
   })
   
   output$exec_margins_note <- renderUI({
-    data_note_ui(
-      "Shaw gross margin not publicly reported. Engineered Floors is a separate private company — no public financials. Public figures from MHK, AWI, TILE annual 10-Ks. Note: Interface (TILE) is commercial modular carpet — margin reflects different product mix."
-    )
+    data_note_ui(paste0(
+      "Source: FY2025 10-K filings (Feb 2026). MHK GAAP gross margin 23.9% \u2014 ",
+      "down 0.9 pp YoY on pricing pressure and tariff headwinds. ",
+      "TILE adjusted gross margin 38.5% (normalized; reported 39.0% includes 50 bp non-recurring). ",
+      "AWI gross margin ~40.5%, driven by Mineral Fiber AUV growth and Architectural Specialties mix. ",
+      "Shaw est. 28.0% is analyst-derived from peer benchmarking \u2014 not a reported figure."
+    ))
   })
   
   output$exec_cat_share <- renderPlotly({
@@ -885,7 +889,7 @@ server <- function(input, output, session) {
       hoverlabel  = list(bgcolor = "#0d1828",
                          font = list(color = PAL$text, size = 11),
                          bordercolor = PAL$border)
-    ) |> config(displayModeBar = FALSE)
+    ) |> plotly::config(displayModeBar = FALSE)
   })
   
   output$exec_mekko_note <- renderUI({
