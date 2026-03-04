@@ -30,18 +30,33 @@ if (nchar(FRED_API_KEY) > 0) tryCatch(fredr_set_key(FRED_API_KEY), error = funct
 
 # ── Shaw Color Palette ────────────────────────────────────────────────────────
 # Built on Shaw Industries' primary brand blue (#2063A8 / #1B4F8C family)
+# PAL <- list(
+#   bg     = "#060b14",
+#   panel  = "#0b1422",
+#   border = "#192840",
+#   text   = "#d6d2cc",
+#   muted  = "#52637a",
+#   accent = "#2b7bd6",    # Shaw primary blue
+#   blue   = "#4aa3e8",    # Shaw light blue
+#   green  = "#2dba7a",
+#   red    = "#d95f5f",
+#   amber  = "#e8a030",
+#   gold   = "#c8a84b",    # used only for analyst-estimate markers
+#   purple = "#9070c0"
+# )
+
 PAL <- list(
   bg     = "#060b14",
-  panel  = "#0b1422",
-  border = "#192840",
-  text   = "#d6d2cc",
-  muted  = "#52637a",
-  accent = "#2b7bd6",    # Shaw primary blue
-  blue   = "#4aa3e8",    # Shaw light blue
+  panel  = "#0e1929",        # was #0b1422 — cards pop off background
+  border = "#1e3352",        # was #192840 — visible borders
+  text   = "#e8e4de",        # was #d6d2cc — warmer, higher contrast
+  muted  = "#7a8fa8",        # was #52637a — was near-invisible (2.8:1 ratio)
+  accent = "#2b7bd6",
+  blue   = "#4aa3e8",
   green  = "#2dba7a",
   red    = "#d95f5f",
   amber  = "#e8a030",
-  gold   = "#c8a84b",    # used only for analyst-estimate markers
+  gold   = "#c8a84b",
   purple = "#9070c0"
 )
 

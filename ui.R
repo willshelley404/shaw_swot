@@ -14,22 +14,49 @@ ui <- fluidPage(
                             "family=Barlow:wght@300;400;500&display=swap")),
     tags$link(rel = "stylesheet", href = "styles.css"),
     # Shaw blue overrides for accent color elements
+    # tags$style(HTML("
+    #   .card-header-accent, .card-header-sm { color: #2b7bd6 !important; }
+    #   .divider-accent { background: linear-gradient(90deg, rgba(43,123,214,0.6), transparent) !important; }
+    #   .card-accent-border { border-left: 3px solid #2b7bd6 !important; }
+    #   .badge-accent { background: rgba(43,123,214,0.15) !important; color: #2b7bd6 !important;
+    #                   border: 1px solid rgba(43,123,214,0.35) !important; }
+    #   .kpi-sub { border-top: 1px solid #192840 !important; }
+    #   .btn-accent, .btn-accent:hover, .btn-accent:focus, .btn-accent:active {
+    #     background: #2b7bd6 !important; color: #ffffff !important; }
+    #   .progress-bar { background: #2b7bd6 !important; }
+    #   .shaw-logo { filter: brightness(1.1); }
+    #   .login-box { border-top: 3px solid #2b7bd6 !important; }
+    #   .topbar { border-bottom: 2px solid #1a3a64 !important; }
+    #   .shaw-wordmark { font-family: 'Playfair Display', serif; font-size: 18px;
+    #                    letter-spacing: 0.25em; color: #4aa3e8; font-weight: 400; }
+    # "))
     tags$style(HTML("
-      .card-header-accent, .card-header-sm { color: #2b7bd6 !important; }
-      .divider-accent { background: linear-gradient(90deg, rgba(43,123,214,0.6), transparent) !important; }
-      .card-accent-border { border-left: 3px solid #2b7bd6 !important; }
-      .badge-accent { background: rgba(43,123,214,0.15) !important; color: #2b7bd6 !important;
-                      border: 1px solid rgba(43,123,214,0.35) !important; }
-      .kpi-sub { border-top: 1px solid #192840 !important; }
-      .btn-accent, .btn-accent:hover, .btn-accent:focus, .btn-accent:active {
-        background: #2b7bd6 !important; color: #ffffff !important; }
-      .progress-bar { background: #2b7bd6 !important; }
-      .shaw-logo { filter: brightness(1.1); }
-      .login-box { border-top: 3px solid #2b7bd6 !important; }
-      .topbar { border-bottom: 2px solid #1a3a64 !important; }
-      .shaw-wordmark { font-family: 'Playfair Display', serif; font-size: 18px;
-                       letter-spacing: 0.25em; color: #4aa3e8; font-weight: 400; }
-    "))
+        .card-header-accent, .card-header-sm { color: #4aa3e8 !important; }
+        .divider-accent {
+          background: linear-gradient(90deg, rgba(43,123,214,0.7), transparent) !important;
+        }
+        .card-accent-border { border-left: 3px solid #2b7bd6 !important; }
+        .badge-accent {
+          background: rgba(43,123,214,0.18) !important;
+          color: #5ba0e8 !important;
+          border: 1px solid rgba(43,123,214,0.4) !important;
+        }
+        .kpi-sub { border-top: 1px solid #1e3352 !important; }
+        .btn-accent, .btn-accent:hover, .btn-accent:focus, .btn-accent:active {
+          background: #2b7bd6 !important; color: #ffffff !important;
+        }
+        .progress-bar { background: #2b7bd6 !important; }
+        .shaw-logo { filter: brightness(1.1); }
+        .login-box { border-top: 3px solid #2b7bd6 !important; }
+        .topbar { border-bottom: 2px solid #1e3352 !important; }
+        .shaw-wordmark {
+          font-family: 'Playfair Display', serif;
+          font-size: 18px;
+          letter-spacing: 0.25em;
+          color: #4aa3e8;
+          font-weight: 400;
+        }
+      "))
   ),
   
   # ── LOGIN SCREEN ───────────────────────────────────────────────────────────
@@ -63,11 +90,11 @@ ui <- fluidPage(
               
               div(class = "mb-3",
                   tags$label("Username", class = "login-label"),
-                  textInput("login_user", label = NULL, placeholder = "Username", width = "100%")
+                  textInput("login_user", label = NULL, placeholder = "Username", width = "100%",value =  "demo")
               ),
               div(class = "mb-4",
                   tags$label("Password", class = "login-label"),
-                  passwordInput("login_pass", label = NULL, placeholder = "Password", width = "100%")
+                  passwordInput("login_pass", label = NULL, placeholder = "Password", width = "100%",value = "demo")
               ),
               
               div(id    = "login_error",
