@@ -56,21 +56,6 @@ ui <- fluidPage(
           color: #4aa3e8;
           font-weight: 400;
         }
-        .pulse-dot {
-          width:10px;
-          height:10px;
-          background:#ff4d4d;
-          border-radius:50%;
-          display:inline-block;
-          margin-right:8px;
-          animation:pulse 1.6s infinite;
-        }
-        
-        @keyframes pulse {
-          0% { box-shadow:0 0 0 0 rgba(255,77,77,0.7); }
-          70% { box-shadow:0 0 0 8px rgba(255,77,77,0); }
-          100% { box-shadow:0 0 0 0 rgba(255,77,77,0); }
-        }
       "))
   ),
   
@@ -355,13 +340,6 @@ ui <- fluidPage(
                    nav_panel("Scenario Modeling",
                              div(class = "tab-content-pad",
                                  uiOutput("scenario_header"),
-                                 tags$br(),
-                                 card(
-                                   card_header("Scenario Probability — Pre-Hormuz vs. Current (March 9, 2026)", class = "card-header-sm"),
-                                   plotlyOutput("scenario_prob_chart", height = "200px"),
-                                   uiOutput("scenario_prob_note")
-                                 ),
-                                 tags$br(),
                                  uiOutput("scenario_selector"),
                                  tags$br(),
                                  uiOutput("scenario_desc_box"),
@@ -379,7 +357,7 @@ ui <- fluidPage(
                                  ),
                                  tags$br(),
                                  card(
-                                   card_header("3-Year Financial Model — Analyst Estimates (Shaw does not disclose financials)",
+                                   card_header("2024A–2028E Financial Model — All figures analyst estimates",
                                                class = "card-header-sm"),
                                    DTOutput("scenario_table")
                                  ),
@@ -392,82 +370,7 @@ ui <- fluidPage(
                              )
                    ),
                    
-                   # ── 6. Geopolitical Risk (added March 9, 2026 - Active Hormuz Crisis) ─────
-                   nav_panel(
-                     title = tags$span(style = "color:#d95f5f;", "\u26a0 Geopolitical Risk"),
-                     value = "Geopolitical Risk",
-                     div(class = "tab-content-pad",
-                         # uiOutput("geo_header"),
-                         # uiOutput("geo_crisis_banner"),
-                         # tags$br(),
-                         ##### ADDING DOCX file 
-                         uiOutput("geo_header"),
-                         uiOutput("geo_crisis_banner"),
-                         
-                         tags$br(),
-                         
-                         div(
-                           style="
-                                background:#1c1c1c;
-                                border-left:6px solid #d95f5f;
-                                padding:16px;
-                                margin-bottom:18px;
-                                display:flex;
-                                align-items:center;
-                                justify-content:space-between;
-                              ",
-                           
-                           div(
-                             tags$div(
-                               style="font-size:13px; letter-spacing:0.08em; color:#ff6b6b; font-weight:600; display:flex; align-items:center;",
-                               tags$span(class="pulse-dot"),
-                               "STRAIT OF HORMUZ CRISIS BRIEF"
-                             ),
-                             tags$div(
-                               style="font-size:12px; color:#c9c9c9; margin-top:4px;",
-                               "Executive intelligence briefing prepared for current geopolitical conditions."
-                             )
-                           ),
-                           
-                           downloadButton(
-                             "download_hormuz_brief",
-                             "Download Brief",
-                             class="btn btn-sm btn-accent",
-                             width="140px"
-                           )
-                         ),
-                         
-                         tags$br(),
-                         
-                         #####
-                         
-                         layout_columns(col_widths = c(5, 7),
-                                        card(card_header("Hormuz Crisis — Timeline & Status", class = "card-header-sm"),
-                                             uiOutput("geo_timeline")),
-                                        card(card_header("Market Impact Snapshot — March 9, 2026", class = "card-header-sm"),
-                                             uiOutput("geo_market_snapshot"),
-                                             plotlyOutput("geo_oil_chart", height = "170px"))
-                         ),
-                         tags$br(),
-                         card(card_header("Transmission Channels — Hormuz to Shaw P&L", class = "card-header-sm"),
-                              uiOutput("geo_transmission_table")),
-                         tags$br(),
-                         card(card_header("Assumption Monitor — Status Changes from Hormuz Crisis", class = "card-header-sm"),
-                              uiOutput("geo_assumption_changes")),
-                         tags$br(),
-                         layout_columns(col_widths = c(6, 6),
-                                        card(card_header("De-escalation vs. Escalation Signals", class = "card-header-sm"),
-                                             uiOutput("geo_signals")),
-                                        card(card_header("Recommended Immediate Actions", class = "card-header-sm"),
-                                             uiOutput("geo_actions"))
-                         ),
-                         tags$br(),
-                         card(card_header("Source Attribution & Methodology", class = "card-header-sm"),
-                              uiOutput("geo_methodology"))
-                     )
-                   ),
-                   
-                   # ── 7. Fact Base ──────────────────────────────────────────────────────
+                   # ── 6. Fact Base ──────────────────────────────────────────────────────
                    nav_panel("Fact Base",
                              div(class = "tab-content-pad",
                                  uiOutput("factbase_header"),
@@ -480,7 +383,7 @@ ui <- fluidPage(
                                  tags$br(),
                                  layout_columns(col_widths = c(6, 6),
                                                 card(
-                                                  card_header("Macro Signal Heatmap", class = "card-header-sm"),
+                                                  card_header("Macro Signal Heatmap — Q1 2026", class = "card-header-sm"),
                                                   uiOutput("macro_heatmap")
                                                 ),
                                                 card(
@@ -497,11 +400,16 @@ ui <- fluidPage(
              # ── Footer ────────────────────────────────────────────────────────────────
              div(class = "portal-footer",
                  div(style = "display:flex; justify-content:space-between; align-items:center;",
-                     tags$p(class = "mb-0",
-                            style = paste0("font-size:10px; color:#3a3830; letter-spacing:0.1em;"),
-                            "SHAW INDUSTRIES GROUP, INC. — CONFIDENTIAL ELT DOCUMENT"),
-                     tags$p(class = "mb-0", style = "font-size:10px; color:#3a3830;",
-                            "Sources: FRED · BLS · U.S. Census · Public SEC Filings · Trade Press · Analyst Estimates")
+                     # Shaw logo small in footer
+                     div(style = "display:flex; align-items:center; gap:8px;",
+                         tags$img(src = SHAW_LOGO_URL, height = "16px", class = "shaw-logo",
+                                  onerror = "this.style.display='none'"),
+                         tags$p(class = "mb-0",
+                                style = "font-size:10px; color:#2a3a50; letter-spacing:0.1em;",
+                                "SHAW INDUSTRIES GROUP, INC. \u2014 CONFIDENTIAL \u2014 LIMITED DEMO ACCESS")
+                     ),
+                     tags$p(class = "mb-0", style = "font-size:10px; color:#2a3a50;",
+                            "FRED \u00b7 tidyquant/Yahoo Finance \u00b7 U.S. Census \u00b7 SEC Filings \u00b7 Trade Press \u00b7 Analyst Estimates")
                  )
              )
   ))

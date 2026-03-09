@@ -1148,20 +1148,17 @@ server <- function(input, output, session) {
       "Dynamic SWOT Engine",
       subtitle = paste0(
         "Evidence-based SWOT with leading indicators and risk probability scoring. ",
-        "Evidence is sourced: public SEC filings, FRED data, and trade press. ",
-        "Risk probability reflects analyst judgement of materialization likelihood."
+        "Evidence is sourced from public SEC filings, FRED data, and trade press. ",
+        "Risk probability reflects analyst judgement of materialization likelihood within 12 months. ",
+        "Note: Shaw and Engineered Floors are separate, independent companies."
       ),
       badge_text = "Evidence-Based"
     )
   })
   
   output$swot_quadrant_row <- renderUI({
-    quads <- list(
-      S = list(col = PAL$green),
-      W = list(col = PAL$red),
-      O = list(col = PAL$blue),
-      T = list(col = PAL$amber)
-    )
+    quads   <- list(S = list(col=PAL$green), W = list(col=PAL$red),
+                    O = list(col=PAL$blue),  T = list(col=PAL$amber))
     qlabels <- list(S="Strengths", W="Weaknesses", O="Opportunities", T="Threats")
     div(style = "display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px;",
         lapply(names(quads), function(q) {
@@ -1169,18 +1166,15 @@ server <- function(input, output, session) {
           active <- rv$swot_quad == q
           n      <- length(SWOT_DATA[[q]]$items)
           div(style = paste0(
-            "border:1px solid ", if(active) qd$col else PAL$border, ";",
-            "background:", if(active) paste0(qd$col, "1a") else "transparent", ";",
+            "border:1px solid ", if (active) qd$col else PAL$border, ";",
+            "background:", if (active) paste0(qd$col, "1a") else "transparent", ";",
             "border-radius:3px; padding:16px; cursor:pointer; text-align:center;"
           ),
-          onclick = paste0("Shiny.setInputValue('swot_quad_sel','",
-                           q, "',{priority:'event'})"),
-          div(style = paste0("font-size:28px; font-family:'Playfair Display',serif;",
-                             " color:", if(active) qd$col else PAL$muted, "; margin-bottom:4px;"), q),
-          div(style = paste0("font-size:13px; color:",
-                             if(active) PAL$text else PAL$muted, ";"), qlabels[[q]]),
-          div(style = paste0("font-size:11px; color:", PAL$muted, "; margin-top:4px;"),
-              paste(n, "factors"))
+          onclick = paste0("Shiny.setInputValue('swot_quad_sel','", q, "',{priority:'event'})"),
+          div(style = paste0("font-size:28px; font-family:'Playfair Display',serif; color:",
+                             if (active) qd$col else PAL$muted, "; margin-bottom:4px;"), q),
+          div(style = paste0("font-size:13px; color:", if (active) PAL$text else PAL$muted, ";"), qlabels[[q]]),
+          div(style = paste0("font-size:11px; color:", PAL$muted, "; margin-top:4px;"), paste(n, "factors"))
           )
         })
     )
@@ -1204,69 +1198,58 @@ server <- function(input, output, session) {
                             "; font-style:italic; margin-bottom:16px;"), desc),
       div(style = "display:grid; gap:8px;",
           lapply(seq_along(items), function(i) {
-            it     <- items[[i]]
-            r_col  <- if (it$risk < 30) PAL$green
-            else if (it$risk < 60) PAL$amber
-            else PAL$red
+            it    <- items[[i]]
+            r_col <- if (it$risk < 30) PAL$green else if (it$risk < 60) PAL$amber else PAL$red
             tc_cls <- switch(it$tier, HIGH = "badge-red", MED = "badge-amber", "badge-muted")
-            div(style = paste0(
-              "background:rgba(255,255,255,0.015); border:1px solid ", PAL$border, ";",
-              "border-radius:3px; padding:16px 18px;"
-            ),
-            # Header row
-            div(style = "display:flex; justify-content:space-between; align-items:center;",
-                div(style = "display:flex; gap:12px; align-items:center;",
-                    tags$span(style = paste0("font-size:11px; color:", col,
-                                             "; min-width:20px;"), sprintf("%02d", i)),
-                    tags$span(style = paste0("font-size:15px; font-family:'Playfair Display',serif;",
-                                             " color:#c0b8a8;"), it$title),
-                    tags$span(class = tc_cls, it$tier)
-                ),
-                div(style = "display:flex; gap:10px; align-items:center;",
-                    div(style = "text-align:right;",
-                        div(style = paste0("font-size:10px; color:", PAL$muted, ";"),
-                            "Risk prob."),
-                        div(style = paste0("font-size:13px; color:", r_col,
-                                           "; font-weight:bold;"),
-                            paste0(it$risk, "%"))
+            div(style = paste0("background:rgba(255,255,255,0.015); border:1px solid ",
+                               PAL$border, "; border-radius:3px; padding:16px 18px;"),
+                div(style = "display:flex; justify-content:space-between; align-items:center;",
+                    div(style = "display:flex; gap:12px; align-items:center;",
+                        tags$span(style = paste0("font-size:11px; color:", col,
+                                                 "; min-width:20px;"), sprintf("%02d", i)),
+                        tags$span(style = paste0("font-size:15px; font-family:'Playfair Display',serif;",
+                                                 " color:#c0b8a8;"), it$title),
+                        tags$span(class = tc_cls, it$tier)
                     ),
-                    div(style = "width:48px;",
-                        div(style = "height:4px; background:#1e2530; border-radius:2px;",
-                            div(style = paste0("height:100%; width:", it$risk,
-                                               "%; background:", r_col, "; border-radius:2px;"))
+                    div(style = "display:flex; gap:10px; align-items:center;",
+                        div(style = "text-align:right;",
+                            div(style = paste0("font-size:10px; color:", PAL$muted, ";"), "Risk prob."),
+                            div(style = paste0("font-size:13px; color:", r_col, "; font-weight:bold;"),
+                                paste0(it$risk, "%"))
+                        ),
+                        div(style = "width:48px;",
+                            div(style = "height:4px; background:#1e2530; border-radius:2px;",
+                                div(style = paste0("height:100%; width:", it$risk,
+                                                   "%; background:", r_col, "; border-radius:2px;")))
                         )
                     )
+                ),
+                div(style = paste0("margin-top:14px; padding-top:14px; border-top:1px solid ",
+                                   PAL$border, "; display:grid; grid-template-columns:1.2fr 1fr 0.8fr; gap:14px;"),
+                    div(
+                      div(style = paste0("font-size:10px; color:", PAL$accent,
+                                         "; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:6px;"),
+                          "Evidence & Source"),
+                      tags$p(style = "font-size:12px; line-height:1.65; margin:0;", it$evidence)
+                    ),
+                    div(
+                      div(style = paste0("font-size:10px; color:", PAL$blue,
+                                         "; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:6px;"),
+                          "Leading Indicator"),
+                      tags$p(style = "font-size:12px; line-height:1.65; margin:0;", it$indicator)
+                    ),
+                    div(
+                      div(style = paste0("font-size:10px; color:", r_col,
+                                         "; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:6px;"),
+                          "Risk Assessment"),
+                      div(style = "height:8px; background:#1e2530; border-radius:4px; margin-bottom:8px;",
+                          div(style = paste0("height:100%; width:", it$risk,
+                                             "%; background:", r_col, "; border-radius:4px;"))
+                      ),
+                      tags$p(style = paste0("font-size:12px; color:", r_col, "; margin:0;"),
+                             paste0(it$risk, "% materialization probability (analyst est.)"))
+                    )
                 )
-            ),
-            # Detail rows
-            div(style = paste0(
-              "margin-top:14px; padding-top:14px; border-top:1px solid ", PAL$border, ";",
-              "display:grid; grid-template-columns:1.2fr 1fr 0.8fr; gap:14px;"
-            ),
-            div(
-              div(style = paste0("font-size:10px; color:", PAL$accent,
-                                 "; letter-spacing:0.12em; text-transform:uppercase;",
-                                 " margin-bottom:6px;"), "Evidence & Source"),
-              tags$p(style = "font-size:12px; line-height:1.65; margin:0;", it$evidence)
-            ),
-            div(
-              div(style = paste0("font-size:10px; color:", PAL$blue,
-                                 "; letter-spacing:0.12em; text-transform:uppercase;",
-                                 " margin-bottom:6px;"), "Leading Indicator"),
-              tags$p(style = "font-size:12px; line-height:1.65; margin:0;", it$indicator)
-            ),
-            div(
-              div(style = paste0("font-size:10px; color:", r_col,
-                                 "; letter-spacing:0.12em; text-transform:uppercase;",
-                                 " margin-bottom:6px;"), "Risk Assessment"),
-              div(style = "height:8px; background:#1e2530; border-radius:4px; margin-bottom:8px;",
-                  div(style = paste0("height:100%; width:", it$risk,
-                                     "%; background:", r_col, "; border-radius:4px;"))
-              ),
-              tags$p(style = paste0("font-size:12px; color:", r_col, "; margin:0;"),
-                     paste0(it$risk, "% materialization probability"))
-            )
-            )
             )
           })
       )
@@ -1277,13 +1260,20 @@ server <- function(input, output, session) {
   # MODULE 4 — ASSUMPTION MONITOR
   # ════════════════════════════════════════════════════════════════════════════
   
+  observeEvent(rv$division, {
+    cfg           <- DIVISION_CONFIG[[rv$division]]
+    rv$assump_cat <- cfg$assump_cats[1]
+  }, ignoreInit = TRUE)
+  
   output$assump_header <- renderUI({
+    cfg <- DIVISION_CONFIG[[rv$division]]
     section_header(
-      "Strategy Assumptions Monitor",
+      paste0("Assumption Monitor — ", rv$division, " Division"),
       subtitle = paste0(
-        "Every strategy is a set of assumptions. This monitor tracks whether ",
-        "Shaw's key strategic assumptions are holding — and flags early when they break. ",
-        "FRED series IDs listed for each metric enable live verification."
+        "Tracking whether Shaw's key strategic assumptions are holding as of Q1 2026. ",
+        "Filtered to ", rv$division, " division's most relevant categories: ",
+        paste(cfg$assump_cats, collapse = ", "), ". ",
+        "Use category filters to see all assumptions."
       ),
       badge_text = "Early Warning System"
     )
@@ -1294,19 +1284,14 @@ server <- function(input, output, session) {
     g <- as.integer(cnts["green"]);  if (is.na(g)) g <- 0L
     y <- as.integer(cnts["yellow"]); if (is.na(y)) y <- 0L
     r <- as.integer(cnts["red"]);    if (is.na(r)) r <- 0L
-    
     mk <- function(n, lbl, sub, col) {
-      div(style = paste0(
-        "background:", col, "12; border:1px solid ", col, "33;",
-        "border-radius:4px; padding:16px 20px; display:flex; align-items:center; gap:16px;"
-      ),
-      div(style = paste0("font-size:36px; color:", col,
-                         "; font-family:'Playfair Display',serif;"), n),
-      div(
-        div(style = paste0("font-size:12px; color:", col,
-                           "; letter-spacing:0.1em; text-transform:uppercase;"), lbl),
-        div(style = paste0("font-size:11px; color:", PAL$muted, ";"), sub)
-      ))
+      div(style = paste0("background:", col, "12; border:1px solid ", col, "33;",
+                         "border-radius:4px; padding:16px 20px; display:flex; align-items:center; gap:16px;"),
+          div(style = paste0("font-size:36px; color:", col, "; font-family:'Playfair Display',serif;"), n),
+          div(
+            div(style = paste0("font-size:12px; color:", col, "; letter-spacing:0.1em; text-transform:uppercase;"), lbl),
+            div(style = paste0("font-size:11px; color:", PAL$muted, ";"), sub)
+          ))
     }
     div(style = "display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;",
         mk(g, "On Track",  "Assumptions holding",         PAL$green),
@@ -1316,19 +1301,19 @@ server <- function(input, output, session) {
   })
   
   output$assump_cat_filters <- renderUI({
-    cats <- c("ALL", sort(unique(ASSUMPTIONS$category)))
+    cats   <- c("ALL", sort(unique(ASSUMPTIONS$category)))
+    active <- rv$assump_cat
     lapply(cats, function(cat) {
-      active <- rv$assump_cat == cat
+      is_act <- active == cat
       tags$button(cat,
                   style = paste0(
-                    "background:", if(active) "rgba(200,168,75,0.15)" else "transparent", ";",
-                    "border:1px solid ", if(active) PAL$accent else PAL$border, ";",
+                    "background:", if (is_act) "rgba(43,123,214,0.15)" else "transparent", ";",
+                    "border:1px solid ", if (is_act) PAL$accent else PAL$border, ";",
                     "border-radius:2px; padding:5px 14px; cursor:pointer;",
-                    "font-size:11px; color:", if(active) PAL$accent else PAL$muted,
+                    "font-size:11px; color:", if (is_act) PAL$accent else PAL$muted,
                     "; letter-spacing:0.1em; text-transform:uppercase;"
                   ),
-                  onclick = paste0("Shiny.setInputValue('assump_cat_sel','",
-                                   cat, "',{priority:'event'})")
+                  onclick = paste0("Shiny.setInputValue('assump_cat_sel','", cat, "',{priority:'event'})")
       )
     })
   })
@@ -1338,7 +1323,6 @@ server <- function(input, output, session) {
   output$assump_table <- renderDT({
     d <- ASSUMPTIONS
     if (rv$assump_cat != "ALL") d <- filter(d, category == rv$assump_cat)
-    
     d_disp <- d |>
       mutate(
         Status = case_when(
@@ -1348,47 +1332,44 @@ server <- function(input, output, session) {
         ),
         Progress = paste0(
           '<div style="width:80px;height:5px;background:#1e2530;border-radius:3px;">',
-          '<div style="height:100%;width:',
-          round(pmin(current_v / target_v, 1.05) * 100),
-          '%;background:',
-          case_when(status=="green"~PAL$green, status=="yellow"~PAL$amber, TRUE~PAL$red),
+          '<div style="height:100%;width:', round(pmin(current_v / target_v, 1.05) * 100),
+          '%;background:', case_when(status=="green" ~ PAL$green, status=="yellow" ~ PAL$amber, TRUE ~ PAL$red),
           ';border-radius:3px;"></div></div>'
         ),
         Weight = paste0(
           '<span class="badge-',
-          tolower(case_when(weight=="HIGH"~"red", weight=="MEDIUM"~"amber", TRUE~"muted")),
+          tolower(case_when(weight == "HIGH" ~ "red", weight == "MEDIUM" ~ "amber", TRUE ~ "muted")),
           '">', weight, '</span>'
         )
       ) |>
       select(Status, assumption, category, Weight, metric, current, threshold, trend, Progress)
-    
     names(d_disp) <- c("Status","Assumption","Category","Priority",
                        "Metric (FRED / Source)","Current","Threshold","Trend","Progress")
-    
-    datatable(d_disp,
-              escape    = FALSE,
-              rownames  = FALSE,
-              options   = list(
-                pageLength = 15,
-                dom        = "t",
-                ordering   = TRUE,
-                columnDefs = list(list(className = "dt-left", targets = "_all"))
-              ),
-              style = "auto"
-    )
+    datatable(d_disp, escape = FALSE, rownames = FALSE,
+              options = list(pageLength = 15, dom = "t", ordering = TRUE,
+                             columnDefs = list(list(className = "dt-left", targets = "_all"))),
+              style = "auto")
   })
   
   output$assump_directive <- renderUI({
-    insight_box(
-      paste0(
-        "The two RED assumptions — LVT/SPC revenue share and SPC launch market share ramp — ",
-        "require immediate management attention. Shaw's February 2025 SPC launch must reach ",
-        "≥4% SPC category share by end of 2026 to offset the structural carpet volume decline. ",
-        "Monitor FRED HOUST and MORTGAGE30US monthly as the primary leading indicators ",
-        "for the residential volume recovery assumption."
-      ),
-      "accent", "Executive Directive"
+    txt <- switch(rv$division,
+                  Residential = paste0(
+                    "Residential's two watch items — LVT/SPC revenue share (est. 21% vs. 23% target) and SPC launch category share (est. 3.5% vs. 4.0% target) — both require near-term management focus. ",
+                    "HOUST recovery toward 1.6M is on track but mortgage rate stickiness at ~6.34% remains the primary headwind. ",
+                    "Monitor FRED HOUST and MORTGAGE30US monthly. SPC channel execution in the production builder segment is the most important near-term variable."
+                  ),
+                  Commercial = paste0(
+                    "Commercial's key assumption — +3%+ YoY segment recovery — has been achieved in 2025. The ABI signal is now positive for H1\u2013H2 2026 demand at Patcraft and Philadelphia. ",
+                    "Priority: convert the ABI signal into multi-year preferred-vendor agreements before the demand wave fully arrives. ",
+                    "Monitor AIA ABI monthly and FRED TTLCONS nonresidential subcategory."
+                  ),
+                  Turf = paste0(
+                    "Turf & Specialty assumptions are the most stable of the three divisions \u2014 minimal direct exposure to HOUST or mortgage cycle. ",
+                    "Primary risks are Infrastructure Act funding pace and competitive positioning against FieldTurf (Tarkett). ",
+                    "Monitor federal infrastructure grant disbursement schedules and municipal parks capital budgets."
+                  )
     )
+    insight_box(txt, "accent", "Division Directive")
   })
   
   # ════════════════════════════════════════════════════════════════════════════
@@ -1399,106 +1380,32 @@ server <- function(input, output, session) {
     section_header(
       "Scenario & Sensitivity Modeling",
       subtitle = paste0(
-        "7 scenarios across pre-crisis and Hormuz Shock trajectories. ",
-        "Probability weights updated March 9, 2026 following Hormuz crisis. ",
-        "Base Case and Expansion revenues REVISED downward — H1 2025 damage is non-recoverable ",
-        "in any scenario. All figures are analyst estimates."
+        "3\u20135 year revenue and EBITDA scenarios for Shaw Industries. ",
+        "\u26a0 All figures are analyst estimates \u2014 Shaw does not report standalone financials. ",
+        "Scenarios are calibrated to FRED macroeconomic series."
       ),
-      badge_text  = "Updated March 9, 2026",
-      badge_color = "red"
+      badge_text  = "Analyst Estimates",
+      badge_color = "amber"
     )
   })
   
-  output$scenario_prob_chart <- renderPlotly({
-    d <- SCENARIO_PROBS
-    plot_ly() |>
-      add_trace(
-        type = "bar", orientation = "h",
-        y    = ~d$label_short,
-        x    = ~d$prob_pre,
-        name = "Pre-Hormuz probability",
-        marker = list(color = paste0(d$color, "50")),
-        hovertemplate = paste0("%{y}: %{x}% pre-crisis<extra></extra>")
-      ) |>
-      add_trace(
-        type = "bar", orientation = "h",
-        y    = ~d$label_short,
-        x    = ~d$prob_post,
-        name = "Current probability (Mar 9)",
-        marker = list(color = d$color),
-        hovertemplate = paste0("%{y}: %{x}% current<extra></extra>")
-      ) |>
-      plotly_dark(xlab = "Analyst probability (%)", ylab = "") |>
-      layout(
-        barmode = "overlay",
-        yaxis   = list(categoryorder = "array",
-                       categoryarray = rev(d$label_short)),
-        xaxis   = list(range = c(0, 55)),
-        annotations = list(
-          list(x = 0.01, y = 1.08, xref = "paper", yref = "paper",
-               text = "Solid = current probability | Faded = pre-Hormuz probability",
-               showarrow = FALSE, font = list(color = PAL$muted, size = 10))
-        )
-      )
-  })
-  
   output$scenario_selector <- renderUI({
-    # Group scenarios: original 4 | Hormuz 3
-    orig_keys    <- c("base","expansion","mild","severe")
-    hormuz_keys  <- c("hormuz_short","hormuz_extended","hormuz_prolonged")
-    
-    make_btn <- function(s) {
-      m      <- SCENARIO_META[[s]]
-      active <- rv$scenario_sel == s
-      prob_post <- m$prob_post
-      prob_pre  <- m$prob_pre
-      prob_col  <- if (prob_post < prob_pre)  PAL$red
-      else if (prob_post > 0)    PAL$green
-      else                       PAL$muted
-      prob_arrow <- if (prob_post < prob_pre) " ↓"
-      else if (prob_post > prob_pre) " ↑"
-      else ""
-      
-      div(style = paste0(
-        "border:1px solid ", if(active) m$color else PAL$border, ";",
-        "background:", if(active) paste0(m$color, "1a") else "transparent", ";",
-        "border-radius:3px; padding:12px; cursor:pointer;"
-      ),
-      onclick = paste0("Shiny.setInputValue('scenario_sel_btn','",
-                       s, "',{priority:\'event\'})"),
-      div(style = paste0("font-size:12px; color:",
-                         if(active) m$color else PAL$muted,
-                         "; margin-bottom:5px; font-weight:bold;"), m$label),
-      # Probability line
-      div(style = paste0("font-size:10px; color:", PAL$muted, "; margin-bottom:6px;",
-                         "display:flex; align-items:center; gap:6px;"),
-          div(style = paste0("font-size:10px; color:", prob_col, "; font-weight:bold;"),
-              paste0(prob_post, "%", prob_arrow)),
-          div(style = paste0("color:", PAL$muted, ";"),
-              if(prob_pre > 0) paste0("(was ", prob_pre, "%)") else "(new)")
-      ),
-      # Mini probability bar
-      div(style = paste0("height:3px; background:", PAL$border, "; border-radius:2px; margin-bottom:6px;"),
-          div(style = paste0("height:100%; width:", min(prob_post*2.2, 100), "%; background:", m$color, "; border-radius:2px;"))
-      ),
-      div(style = paste0("font-size:10px; color:", PAL$muted, "; line-height:1.4;"),
-          substr(m$desc, 1, 60), "...")
-      )
-    }
-    
-    div(
-      # Original scenarios
-      div(style = paste0("font-size:10px; color:", PAL$muted,
-                         "; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:8px;"),
-          "Pre-Crisis Scenarios — Probabilities Revised"),
-      div(style = "display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; margin-bottom:14px;",
-          lapply(orig_keys, make_btn)),
-      # Hormuz scenarios
-      div(style = paste0("font-size:10px; color:#d95f5f",
-                         "; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:8px;"),
-          "⚠ Active Hormuz Shock Scenarios — Added March 9, 2026"),
-      div(style = "display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;",
-          lapply(hormuz_keys, make_btn))
+    div(style = "display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px;",
+        lapply(names(SCENARIO_META), function(s) {
+          m      <- SCENARIO_META[[s]]
+          active <- rv$scenario_sel == s
+          div(style = paste0(
+            "border:1px solid ", if (active) m$color else PAL$border, ";",
+            "background:", if (active) paste0(m$color, "1a") else "transparent", ";",
+            "border-radius:3px; padding:14px; cursor:pointer;"
+          ),
+          onclick = paste0("Shiny.setInputValue('scenario_sel_btn','", s, "',{priority:'event'})"),
+          div(style = paste0("font-size:13px; color:", if (active) m$color else PAL$muted,
+                             "; margin-bottom:6px;"), m$label),
+          div(style = paste0("font-size:11px; color:", PAL$muted, "; line-height:1.5;"),
+              substr(m$desc, 1, 70), "...")
+          )
+        })
     )
   })
   
@@ -1506,28 +1413,13 @@ server <- function(input, output, session) {
   
   output$scenario_desc_box <- renderUI({
     m <- SCENARIO_META[[rv$scenario_sel]]
-    is_revised <- !m$is_hormuz && m$prob_post < m$prob_pre
-    div(
-      if (is_revised)
-        div(style = paste0("padding:10px 14px; background:", PAL$amber, "0e; border:1px solid ",
-                           PAL$amber, "33; border-radius:3px; margin-bottom:10px;",
-                           "font-size:11px; color:", PAL$amber, "; line-height:1.6;"),
-            paste0("⚠ REVISED March 9, 2026: ", m$prob_change)),
-      div(style = paste0("padding:14px 18px; background:", m$color, "0e;",
-                         "border:1px solid ", m$color, "33; border-radius:3px;"),
-          div(style = paste0("display:flex; align-items:center; gap:12px; margin-bottom:8px;"),
-              div(style = paste0("font-size:11px; color:", m$color,
-                                 "; letter-spacing:0.15em; text-transform:uppercase;"),
-                  paste(m$label, "— Scenario Drivers")),
-              tags$span(class = if(m$prob_post > 25) "badge-red"
-                        else if(m$prob_post > 10) "badge-amber"
-                        else "badge-muted",
-                        paste0(m$prob_post, "% probability"))
-          ),
-          tags$p(style = paste0("font-size:13px; line-height:1.7; margin:0 0 8px;"), m$desc),
-          div(style = paste0("font-size:11px; color:", PAL$muted, ";"),
-              "Key indicators: ", m$drivers)
-      )
+    div(style = paste0("padding:14px 18px; background:", m$color, "0e;",
+                       "border:1px solid ", m$color, "33; border-radius:3px;"),
+        div(style = paste0("font-size:11px; color:", m$color,
+                           "; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;"),
+            paste(m$label, "— Scenario Drivers")),
+        tags$p(style = "font-size:13px; line-height:1.7; margin:0 0 8px;", m$desc),
+        div(style = paste0("font-size:11px; color:", PAL$muted, ";"), "Key FRED indicators: ", m$drivers)
     )
   })
   
@@ -1536,11 +1428,10 @@ server <- function(input, output, session) {
     m <- SCENARIO_META[[rv$scenario_sel]]
     plot_ly(d, x = ~year) |>
       add_trace(y = ~revenue_m, type = "scatter", mode = "lines+markers",
-                name    = "Revenue $M (est.)",
-                line    = list(color = m$color, width = 2.5),
-                marker  = list(color = m$color, size = 7),
-                fill    = "tozeroy",
-                fillcolor = paste0(m$color, "14"),
+                name = "Revenue $M (est.)",
+                line   = list(color = m$color, width = 2.5),
+                marker = list(color = m$color, size = 7),
+                fill   = "tozeroy", fillcolor = paste0(m$color, "14"),
                 hovertemplate = "%{x}: $%{y:,.0f}M (est.)<extra></extra>") |>
       add_segments(x = "2024E", xend = "2024E", y = 4800, yend = 8500,
                    line = list(color = PAL$muted, dash = "dot", width = 1),
@@ -1548,36 +1439,13 @@ server <- function(input, output, session) {
       plotly_dark(xlab = "", ylab = "Revenue $M (analyst est.)", legend = FALSE)
   })
   
-  output$scenario_prob_note <- renderUI({
-    data_note_ui(paste0(
-      "Probabilities are analyst judgements, not statistically derived. ",
-      "They reflect which macro assumptions are currently broken (see Assumption Monitor), ",
-      "historical base rates for Middle East conflict durations, and current diplomatic signals. ",
-      "Modal scenario is now Hormuz Extended (37%). Sum across all 7 scenarios = 100%."
-    ))
-  })
-  
   output$scenario_rev_note <- renderUI({
-    m <- SCENARIO_META[[rv$scenario_sel]]
-    is_revised <- !m$is_hormuz && m$prob_post < m$prob_pre
-    div(
-      if (is_revised)
-        data_note_ui(paste0(
-          "REVISED March 9, 2026. Revenue reduced vs. pre-crisis estimates ",
-          "to reflect non-recoverable H1 2025 damage from Hormuz crisis: ",
-          "input cost spike (WPU0672 lags crude 4-8 weeks) + housing recovery delay. ",
-          m$prob_change
-        ))
-      else if (m$is_hormuz)
-        data_note_ui(paste0(
-          "Active Hormuz Shock scenario. All revenue/EBITDA figures are analyst estimates. ",
-          "Shaw does not report standalone financials. See Geopolitical Risk tab for full analysis."
-        ))
-      else
-        data_note_ui(
-          "Revenue figures are analyst estimates. Shaw Industries (Berkshire Hathaway subsidiary) does not publicly report standalone financials."
-        )
-    )
+    data_note_ui(paste0(
+      "2024A and 2025A* = analyst estimates of closed fiscal years. ",
+      "Shaw Industries (Berkshire Hathaway subsidiary) does not publicly report ",
+      "standalone revenue or EBITDA. 2026E\u20132028E = forward projections. ",
+      "EBITDA margins modeled from public-company industry peers (MHK, AWI, TILE)."
+    ))
   })
   
   output$scenario_ebitda_chart <- renderPlotly({
@@ -1595,8 +1463,8 @@ server <- function(input, output, session) {
   output$scenario_table <- renderDT({
     d <- SCENARIOS[[rv$scenario_sel]] |>
       mutate(
-        growth = c(NA, diff(revenue_m) / head(revenue_m, -1) * 100),
-        em_pct = round(ebitda_m / revenue_m * 100, 1),
+        growth  = c(NA, diff(revenue_m) / head(revenue_m, -1) * 100),
+        em_pct  = round(ebitda_m / revenue_m * 100, 1),
         rev_fmt = paste0("$", format(revenue_m, big.mark = ",")),
         gr_fmt  = ifelse(is.na(growth), "\u2014",
                          paste0(ifelse(growth >= 0, "+", ""),
@@ -1604,23 +1472,47 @@ server <- function(input, output, session) {
         em_fmt  = paste0(ebitda_margin, "%"),
         eb_fmt  = paste0("$", format(ebitda_m, big.mark = ",")),
         epm_fmt = paste0(em_pct, "%")
-      ) |>
+      )
+    
+    # Save color vector BEFORE building display tibble — never put it in d_disp.
+    # Column names starting with _ cause dplyr select() to silently malform the
+    # tibble, which DT then rejects entirely ("No matching records found").
+    gr_colors <- case_when(
+      is.na(d$growth) ~ PAL$muted,
+      d$growth >= 0   ~ PAL$green,
+      TRUE            ~ PAL$red
+    )
+    
+    d_disp <- d |>
       select(year, rev_fmt, gr_fmt, em_fmt, eb_fmt, epm_fmt)
     
-    names(d) <- c("Year","Revenue ($M est.)","YoY Growth",
-                  "EBITDA Margin","EBITDA ($M est.)","EBITDA/Rev")
+    names(d_disp) <- c(
+      "Year", "Revenue ($M est.)", "YoY Growth",
+      "EBITDA Margin", "EBITDA ($M est.)", "EBITDA/Rev"
+    )
     
-    datatable(d, rownames = FALSE,
-              options = list(dom = "t", ordering = FALSE,
-                             columnDefs = list(list(className="dt-left", targets="_all"))),
-              style = "auto") |>
-      formatStyle("YoY Growth",
-                  color = JS(paste0(
-                    "function(v){",
-                    "if(v==='\u2014') return '", PAL$muted, "';",
-                    "return v.startsWith('+') ? '", PAL$green, "' : '", PAL$red, "';",
-                    "}"
-                  ))
+    datatable(
+      d_disp,
+      rownames = FALSE,
+      options  = list(
+        dom        = "t",
+        ordering   = FALSE,
+        columnDefs = list(
+          list(className = "dt-left", targets = "_all")
+        )
+      )
+    ) |>
+      formatStyle(
+        columns = "YoY Growth",
+        color   = styleEqual(
+          levels = d_disp[["YoY Growth"]],
+          values = gr_colors
+        )
+      ) |>
+      formatStyle(
+        columns    = names(d_disp),
+        color      = PAL$text,
+        background = "transparent"
       )
   })
   
@@ -1629,11 +1521,9 @@ server <- function(input, output, session) {
         lapply(seq_len(nrow(LEADING_INDICATORS)), function(i) {
           r   <- LEADING_INDICATORS[i, ]
           col <- switch(r$status, green = PAL$green, amber = PAL$amber, PAL$red)
-          div(style = paste0("border:1px solid ", PAL$border,
-                             "; border-radius:3px; padding:12px 14px;"),
+          div(style = paste0("border:1px solid ", PAL$border, "; border-radius:3px; padding:12px 14px;"),
               div(style = "font-size:12px; margin-bottom:4px;", r$indicator),
-              div(style = paste0("font-size:11px; color:", PAL$muted, "; margin-bottom:6px;"),
-                  r$lead_time),
+              div(style = paste0("font-size:11px; color:", PAL$muted, "; margin-bottom:6px;"), r$lead_time),
               div(style = paste0("font-size:12px; color:", col, ";"), r$current)
           )
         })
@@ -1641,284 +1531,7 @@ server <- function(input, output, session) {
   })
   
   # ════════════════════════════════════════════════════════════════════════════
-  
-  # ════════════════════════════════════════════════════════════════════════════
-  # MODULE 6 — GEOPOLITICAL RISK (added March 9, 2026 — Active Hormuz Crisis)
-  # ════════════════════════════════════════════════════════════════════════════
-  
-  output$geo_header <- renderUI({
-    section_header(
-      "Geopolitical Risk Monitor",
-      subtitle = paste0(
-        "Active monitoring of the 2026 Strait of Hormuz crisis and its direct transmission to Shaw Industries. ",
-        "Added March 9, 2026 (conflict day 9). Status: ACTIVE — No ceasefire. ",
-        "All data points are sourced from published, attributed news and market sources. ",
-        "This module should be reviewed daily until resolution."
-      ),
-      badge_text  = paste0("ACTIVE — Day ", HORMUZ_STATUS$conflict_day),
-      badge_color = "red"
-    )
-  })
-  
-  output$geo_crisis_banner <- renderUI({
-    div(style = paste0("padding:16px 20px; background:", PAL$red, "12; border:2px solid ",
-                       PAL$red, "60; border-radius:4px; display:flex; align-items:center; gap:16px;"),
-        div(style = paste0("font-size:28px; color:", PAL$red, ";"), "\u26a0"),
-        div(
-          div(style = paste0("font-size:14px; font-family:\'Playfair Display\',serif; color:", PAL$text,
-                             "; margin-bottom:4px;"),
-              "2026 Strait of Hormuz Crisis — Active Geopolitical Supply Disruption"),
-          div(style = paste0("font-size:12px; color:", PAL$muted, "; line-height:1.6;"),
-              paste0("US-Israel military strikes on Iran began February 28, 2026. Strait of Hormuz effectively ",
-                     "closed March 2. Tanker traffic -90%. WTI crude +38% in 9 days. Three Shaw strategic assumptions ",
-                     "reclassified from GREEN/YELLOW to RED. Hormuz Shock scenarios added to portal."))
-        )
-    )
-  })
-  
-  output$geo_timeline <- renderUI({
-    div(style = "padding:4px 0; display:grid; gap:0;",
-        lapply(HORMUZ_STATUS$key_events, function(e) {
-          div(style = paste0("display:flex; gap:14px; padding:10px 0; border-bottom:1px solid ",
-                             PAL$border, ";"),
-              div(style = paste0("font-size:11px; color:", PAL$accent, "; min-width:40px; font-weight:bold;"),
-                  e$date),
-              div(style = paste0("font-size:12px; color:", PAL$text, "; line-height:1.55;"), e$event)
-          )
-        })
-    )
-  })
-  
-  output$geo_market_snapshot <- renderUI({
-    h <- HORMUZ_STATUS
-    div(style = "display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;",
-        kpi_card("WTI Crude (current)", paste0("$", h$wti_current, "/bbl"),
-                 paste0("\u2191 +", round(h$wti_current - h$wti_pre_conflict), "$ (+",
-                        h$wti_weekly_gain_pct, "% weekly)"), PAL$red,
-                 "Source: CNBC, March 6 — largest weekly gain since 1983"),
-        kpi_card("Tanker Transit Drop", paste0(h$transit_drop_pct, "%"),
-                 "vs. 24/day average pre-conflict", PAL$red,
-                 "Source: Kpler vessel tracking via Euronews"),
-        kpi_card("Vessels Stranded", as.character(h$vessels_stranded),
-                 paste0(h$tankers_stranded, " crude/product tankers"),
-                 PAL$amber, "Source: Lloyd\'s List Intelligence"),
-        kpi_card("War Risk Insurance", paste0(h$war_risk_insurance_pct_current, "%"),
-                 paste0("Was ", h$war_risk_insurance_pct_before, "% pre-conflict (5x increase)"),
-                 PAL$red, "Source: Marsh, CNBC March 4")
-    )
-  })
-  
-  output$geo_oil_chart <- renderPlotly({
-    # Illustrative WTI path — approximate values from news sources
-    oil_data <- tibble(
-      day   = c("Feb 27", "Feb 28", "Mar 1", "Mar 2", "Mar 3", "Mar 4", "Mar 5", "Mar 6", "Mar 8", "Mar 9"),
-      event = c("Pre-conflict", "Strikes begin", "IRGC threatens ships", "IRGC closes Strait",
-                "Qatar LNG halted", "ICIS plastics warning", "Insurance withdrawn",
-                "Record weekly gain", "Brent $100+", "Today"),
-      wti   = c(64.8, 68.5, 72.7, 75.4, 78.2, 81.0, 84.3, 90.9, 103.2, 91.0)
-    )
-    plot_ly(oil_data, x = ~day) |>
-      add_lines(y = ~wti, name = "WTI Crude ($/bbl — approx.)",
-                line = list(color = PAL$red, width = 2.5)) |>
-      add_markers(y = ~wti, marker = list(color = PAL$red, size = 6)) |>
-      add_segments(x = "Feb 27", xend = "Feb 27", y = 60, yend = 110,
-                   line = list(color = PAL$muted, dash = "dot", width = 1),
-                   showlegend = FALSE) |>
-      plotly_dark(xlab = "", ylab = "$/bbl", legend = FALSE) |>
-      layout(
-        annotations = list(
-          list(x = "Feb 28", y = 68.5, text = "Strikes<br>begin",
-               showarrow = TRUE, arrowcolor = PAL$amber, font = list(color = PAL$amber, size = 9),
-               ay = -30, ax = 0),
-          list(x = "Mar 2", y = 75.4, text = "Strait<br>closed",
-               showarrow = TRUE, arrowcolor = PAL$red, font = list(color = PAL$red, size = 9),
-               ay = -30, ax = 0),
-          list(x = "Mar 8", y = 103.2, text = "Brent<br>$100+",
-               showarrow = TRUE, arrowcolor = PAL$red, font = list(color = PAL$red, size = 9),
-               ay = -30, ax = 0)
-        ),
-        yaxis = list(range = c(55, 120))
-      )
-  })
-  
-  output$geo_transmission_table <- renderUI({
-    d <- HORMUZ_TRANSMISSION
-    div(style = "display:grid; gap:8px;",
-        lapply(seq_len(nrow(d)), function(i) {
-          r <- d[i, ]
-          sev_col <- switch(r$severity_color, red = PAL$red, amber = PAL$amber, PAL$green)
-          sev_cls <- switch(r$severity_color, red = "badge-red", "badge-amber")
-          div(style = paste0("border:1px solid ", PAL$border, "; border-radius:3px;",
-                             "padding:14px 16px; background:rgba(255,255,255,0.015);"),
-              div(style = "display:flex; align-items:center; gap:12px; margin-bottom:10px;",
-                  div(style = paste0("font-size:13px; color:", PAL$text, "; flex:1;"), r$channel),
-                  tags$span(class = sev_cls, r$severity)
-              ),
-              div(style = paste0("display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:12px; ",
-                                 "font-size:11px; color:", PAL$muted, ";"),
-                  div(tags$div(style = paste0("color:", PAL$accent,
-                                              "; text-transform:uppercase; font-size:9px; letter-spacing:0.12em; margin-bottom:4px;"),
-                               "Mechanism"),
-                      r$mechanism),
-                  div(tags$div(style = paste0("color:", PAL$blue,
-                                              "; text-transform:uppercase; font-size:9px; letter-spacing:0.12em; margin-bottom:4px;"),
-                               "FRED / Data to Monitor"),
-                      r$fred_monitor),
-                  div(tags$div(style = paste0("color:", PAL$green,
-                                              "; text-transform:uppercase; font-size:9px; letter-spacing:0.12em; margin-bottom:4px;"),
-                               "Resolution Signal"),
-                      r$resolution_signal)
-              )
-          )
-        })
-    )
-  })
-  
-  output$geo_assumption_changes <- renderUI({
-    affected <- ASSUMPTIONS |> filter(!is.na(hormuz_flag) & hormuz_flag)
-    div(
-      data_note_ui("Statuses updated March 9, 2026 following Hormuz crisis. Previously GREEN/YELLOW assumptions now reclassified."),
-      tags$br(),
-      div(style = "display:grid; gap:8px;",
-          lapply(seq_len(nrow(affected)), function(i) {
-            r <- affected[i, ]
-            col <- switch(r$status, green = PAL$green, yellow = PAL$amber, red = PAL$red, PAL$muted)
-            cls <- switch(r$status, green = "badge-green", yellow = "badge-amber", "badge-red")
-            div(style = paste0("border:1px solid ", col, "44; border-radius:3px; padding:12px 16px;",
-                               "background:", col, "0a;"),
-                div(style = "display:flex; align-items:center; gap:10px; margin-bottom:6px;",
-                    tags$span(class = cls, r$status),
-                    div(style = paste0("font-size:13px; color:", PAL$text, ";"), r$assumption)
-                ),
-                div(style = paste0("font-size:11px; color:", PAL$muted, "; line-height:1.6;"),
-                    r$trend),
-                if (!is.na(r$hormuz_note) && nchar(r$hormuz_note) > 0)
-                  div(style = paste0("font-size:11px; color:", PAL$amber,
-                                     "; margin-top:6px; border-top:1px solid ", PAL$border,
-                                     "; padding-top:6px; font-style:italic;"),
-                      paste0("\u26a0 Hormuz link: ", r$hormuz_note))
-            )
-          })
-      )
-    )
-  })
-  
-  output$geo_signals <- renderUI({
-    signals <- list(
-      list(type = "de", label = "WTI returns to $70-75 range",
-           detail = "Indicates Hormuz transit resuming; insurance premiums dropping; freight normalizing."),
-      list(type = "de", label = "AIS tanker signals normalize in Strait",
-           detail = "MarineTraffic/Kpler vessel tracking shows Hormuz transits recovering toward 24/day average."),
-      list(type = "de", label = "Iran-US intermediary talks confirmed",
-           detail = "Formal diplomatic channel opens; ceasefire framework under discussion."),
-      list(type = "de", label = "Fed signals rate cut intent",
-           detail = "FEDFUNDS trajectory re-establishes; rate cut assumptions can be restored."),
-      list(type = "esc", label = "Iran strikes additional Gulf energy infrastructure",
-           detail = "Additional Saudi/Kuwait/UAE facility attacks escalate and extend the crisis."),
-      list(type = "esc", label = "WTI sustains above $100 for 2+ weeks",
-           detail = "ICIS: petrochemical markets fully repriced; WPU0672 +10%+ YoY now baked in."),
-      list(type = "esc", label = "Major Gulf producer calls force majeure",
-           detail = "Qatar energy minister warned this is imminent if tankers cannot transit. 'Brings down world economies.'"),
-      list(type = "esc", label = "Trump demands intensify; no talks",
-           detail = "Unconditional surrender demand maintained; diplomatic channel stays closed.")
-    )
-    div(style = "display:grid; gap:8px;",
-        lapply(signals, function(s) {
-          col <- if (s$type == "de") PAL$green else PAL$red
-          cls <- if (s$type == "de") "badge-green" else "badge-red"
-          lbl <- if (s$type == "de") "De-escalation" else "Escalation"
-          div(style = paste0("border:1px solid ", col, "33; border-radius:3px; padding:10px 14px;",
-                             "background:", col, "0a;"),
-              div(style = "display:flex; align-items:center; gap:8px; margin-bottom:4px;",
-                  tags$span(class = cls, lbl),
-                  div(style = paste0("font-size:12px; color:", PAL$text, ";"), s$label)
-              ),
-              div(style = paste0("font-size:11px; color:", PAL$muted, ";"), s$detail)
-          )
-        })
-    )
-  })
-  
-  output$geo_actions <- renderUI({
-    actions <- list(
-      list(priority = "IMMEDIATE", color = PAL$red,
-           action = "Audit resin inventory",
-           detail = "Quantify weeks of cover across all manufacturing sites. Decision: accelerate procurement before WPU0672 spikes (4-8 week lag from crude)."),
-      list(priority = "IMMEDIATE", color = PAL$red,
-           action = "Engage Invista and Ascend on fiber supply",
-           detail = "Forward pricing conversations and supply commitment letters for nylon 6,6. Do not wait for spot spike."),
-      list(priority = "IMMEDIATE", color = PAL$red,
-           action = "Review open pricing commitments",
-           detail = "Check builder and dealer contracts for force majeure and raw material escalation clauses."),
-      list(priority = "THIS WEEK", color = PAL$amber,
-           action = "Stress test 2025 financial plan",
-           detail = "Run Hormuz Extended scenario (-$580M revenue vs. Base Case, -200bps EBITDA margin)."),
-      list(priority = "THIS WEEK", color = PAL$amber,
-           action = "Identify alternative SPC raw material sources",
-           detail = "Shaw SPC launch (Feb 2025) sources core/wear-layer from Asia. Map non-Hormuz-exposed supply options."),
-      list(priority = "ONGOING", color = PAL$muted,
-           action = "Monitor AIS vessel tracking daily",
-           detail = "MarineTraffic / Kpler for Hormuz tanker transit resumption — leading signal for resolution.")
-    )
-    div(style = "display:grid; gap:8px;",
-        lapply(actions, function(a) {
-          cls <- switch(a$priority, IMMEDIATE = "badge-red", `THIS WEEK` = "badge-amber", "badge-muted")
-          div(style = paste0("border:1px solid ", PAL$border, "; border-radius:3px; padding:10px 14px;"),
-              div(style = "display:flex; align-items:center; gap:8px; margin-bottom:4px;",
-                  tags$span(class = cls, a$priority),
-                  div(style = paste0("font-size:12px; color:", PAL$text, "; font-weight:bold;"), a$action)
-              ),
-              div(style = paste0("font-size:11px; color:", PAL$muted, ";"), a$detail)
-          )
-        })
-    )
-  })
-  
-  output$geo_methodology <- renderUI({
-    sources <- list(
-      list(src = "Kpler energy analytics", url = "kpler.com",
-           use = "WTI price path; tanker traffic data; vessel stranding estimates"),
-      list(src = "Lloyd's List Intelligence", url = "lloydslist.com",
-           use = "Vessel tracking; container ship transit data; port disruption status"),
-      list(src = "ICIS Hydrocarbon Engineering", url = "hydrocarbonengineering.com",
-           use = "Plastics/petrochemical market tightening confirmation (March 4, 2026)"),
-      list(src = "CNBC Markets", url = "cnbc.com",
-           use = "WTI weekly gain record; oil price trajectory; Fed official statements"),
-      list(src = "Bloomberg Energy", url = "bloomberg.com",
-           use = "Brent crude price; shipping suspension confirmations from major carriers"),
-      list(src = "Congressional Research Service (CRS)", url = "congress.gov/crs-product/R45281",
-           use = "Hormuz strategic overview; Iran naval capabilities; historical context"),
-      list(src = "Marsh insurance broker (via CNBC)", url = "cnbc.com",
-           use = "War risk insurance premium surge from 0.25% to 1.25% of vessel value"),
-      list(src = "Yahoo Finance / TheStreet", url = "finance.yahoo.com",
-           use = "Fed official statements on rate cut probability; inflation outlook"),
-      list(src = "GasBuddy / CBS News", url = "cbsnews.com",
-           use = "U.S. retail gasoline price increase ($0.26/gal in one week)"),
-      list(src = "Qatar energy minister / Financial Times", url = "ft.com",
-           use = "$150/bbl tail risk statement; force majeure warning from Gulf exporters")
-    )
-    div(
-      tags$p(style = paste0("font-size:12px; color:", PAL$muted, "; margin-bottom:12px; line-height:1.65;"),
-             "All data points in this module are sourced from published, attributed news and market intelligence sources. ",
-             "Prices and statistics reflect approximate values as reported in cited sources. ",
-             "Oil price path (chart) is illustrative based on reported ranges — precise intraday values were not available for all dates. ",
-             "No data in this module is fabricated or modeled without a cited basis."
-      ),
-      div(style = "display:grid; gap:6px;",
-          lapply(sources, function(s) {
-            div(style = paste0("display:flex; gap:10px; padding:8px 12px; background:rgba(255,255,255,0.015);",
-                               "border:1px solid ", PAL$border, "; border-radius:3px;"),
-                div(style = paste0("font-size:11px; color:", PAL$accent, "; min-width:200px; font-weight:bold;"),
-                    s$src),
-                div(style = paste0("font-size:11px; color:", PAL$muted, ";"), s$use)
-            )
-          })
-      )
-    )
-  })
-  
-  # MODULE 7 — FACT BASE
-  
+  # MODULE 6 — FACT BASE
   # ════════════════════════════════════════════════════════════════════════════
   
   output$factbase_header <- renderUI({
@@ -2146,17 +1759,5 @@ server <- function(input, output, session) {
         })
     )
   })
-  
-  
-  # DOCX----
-  output$download_hormuz_brief <- downloadHandler(
-    filename = function() {
-      "Shaw_Hormuz_Crisis_Briefing.docx"
-    },
-    content = function(file) {
-      file.copy("www/shaw_hormuz_brief.docx", file)
-    },
-    contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  )
   
 }

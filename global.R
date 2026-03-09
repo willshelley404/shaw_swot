@@ -137,28 +137,9 @@ VALID_USERS <- list(
 )
 
 # ── FRED Series Registry ──────────────────────────────────────────────────────
-# All series IDs are verified real FRED series.
-# HOUST         : Housing Starts: Total: New Privately Owned Units Started (Ths. SAAR)
-# FEDFUNDS      : Federal Funds Effective Rate (%, monthly)
-# MORTGAGE30US  : 30-Year Fixed Rate Mortgage Average in the U.S. (%, weekly -> qtr avg)
-# WPU0672       : PPI by Commodity: Rubber and Plastics: Plastics Products (Index 1982=100)
-# DCOILWTICO    : Crude Oil Prices: West Texas Intermediate (WTI) - Cushing, OK ($/bbl, daily)
-#                 ADDED March 9, 2026 — Hormuz crisis makes WTI the #1 leading indicator
-#                 for Shaw's input cost trajectory. WPU0672 lags crude by ~4-8 weeks.
-# CPIAUCSL      : CPI All Urban Consumers: All Items in U.S. City Average (Index 1982-84=100)
-# TTLCONS       : Total Construction Spending: Total ($M SAAR)
-# PCU484121484121: PPI: Truck Transportation of Long-Distance General Freight (Index 2012=100)
-# FRED_SERIES <- list(
-#   housing_starts = list(id = "HOUST",            freq = "q", agg = "avg"),
-#   fed_funds      = list(id = "FEDFUNDS",         freq = "q", agg = "avg"),
-#   mortgage_30    = list(id = "MORTGAGE30US",     freq = "q", agg = "avg"),
-#   ppi_plastics   = list(id = "WPU0672",          freq = "q", agg = "avg"),
-#   wti_crude      = list(id = "DCOILWTICO",       freq = "q", agg = "avg"),  # Added Mar 2026
-#   cpi            = list(id = "CPIAUCSL",         freq = "q", agg = "avg"),
-#   construction   = list(id = "TTLCONS",          freq = "q", agg = "avg"),
-#   freight_ppi    = list(id = "PCU484121484121",  freq = "q", agg = "avg")
-# )
-
+# REMOVED: FEDTARC1 — does NOT exist on FRED. SEP dot-plot is PDF-only.
+# ADDED:   DFEDTARU / DFEDTARL — actual FOMC target range bounds (daily -> monthly avg).
+#          Used in fetch_fred_data() to derive a mechanical implied forward rate path.
 FRED_SERIES <- list(
   housing_starts = list(id = "HOUST",            freq = "m", agg = "avg"),
   fed_funds      = list(id = "FEDFUNDS",         freq = "m", agg = "avg"),
@@ -166,13 +147,12 @@ FRED_SERIES <- list(
   ppi_resins     = list(id = "WPU0911",          freq = "m", agg = "avg"),
   ppi_fiber      = list(id = "WPU0713",          freq = "m", agg = "avg"),
   cpi            = list(id = "CPIAUCSL",         freq = "m", agg = "avg"),
-  wti_crude      = list(id = "DCOILWTICO",       freq = "m", agg = "avg"),  # Added Mar 2026
+  # wti_crude      = list(id = "DCOILWTICO",       freq = "m", agg = "avg"),  # Added Mar 2026
   construction   = list(id = "TTLCONS",          freq = "m", agg = "avg"),
   freight_ppi    = list(id = "PCU484121484121",  freq = "m", agg = "avg"),
   fed_target_hi  = list(id = "DFEDTARU",         freq = "m", agg = "avg"),
   fed_target_lo  = list(id = "DFEDTARL",         freq = "m", agg = "avg")
 )
-
 
 # ── FRED Fetch ────────────────────────────────────────────────────────────────
 fetch_one_series <- function(series_id, start = "2019-01-01", freq = "m", agg = "avg") {
@@ -722,276 +702,60 @@ SWOT_DATA <- list(
 ASSUMPTIONS <- tibble(
   id         = 1:8,
   assumption = c(
-    "Housing starts recover to ≥1.6M annualized by end of 2026",
+    "Housing starts recover to >=1.6M annualized by end of 2026",
     "FEDFUNDS falls below 4.0% by Q4 2025",
-    "PPI plastics (WPU0672) inflation stays below +6% YoY",
-    "Shaw LVT/SPC revenue share grows from est. ~18% to ≥23% by 2026",
+    "PPI Resins (WPU0911) inflation stays below +6% YoY",
+    "Shaw LVT/SPC revenue share grows from est. ~18% to >=23% by 2026",
     "Commercial segment (Patcraft/Shaw Contract) rebounds +3%+ YoY in 2025",
     "Long-distance freight PPI stays below 2022 peak of ~175",
     "No new major tariff escalation disrupts Asian LVT supply cost structure",
-    "Shaw SPC launch (Feb 2025) reaches ≥4% SPC category share by end 2026"
+    "Shaw SPC launch (Feb 2025) reaches >=4% SPC category share by end 2026"
   ),
-  metric     = c(
-    "FRED HOUST (k units SAAR)",
-    "FRED FEDFUNDS (%)",
-    "FRED WPU0672 YoY % change",
-    "Est. LVT/SPC as % Shaw revenue",
-    "Est. commercial segment YoY growth",
-    "FRED PCU484121484121 Index",
-    "Census HS 3918+5703 import share %",
-    "Est. SPC category market share %"
-  ),
-  current    = c("1,380k","4.83%","+3.1%","~18% (est.)",
-                 "+1.2% (est.)","143","~22% (est.)","~2% (est.)"),
-  threshold  = c(">1,600k","<4.0%","<6.0%",">23%",
-                 ">3.0%","<175","<27%",">4.0%"),
-  current_v  = c(1380, 4.83, 3.1, 18, 1.2, 143, 22, 2),
-  target_v   = c(1600, 4.00, 6.0, 23, 3.0, 175, 27, 4),
-  status     = c("red","red","red","red","yellow","yellow","yellow","red"),
-  trend      = c(
-    "DETERIORATING: mortgage rates back above 6%; HOUST recovery delayed 6-12mo (Hormuz crisis)",
-    "DETERIORATING: Fed frozen; 0 cuts now priced for 2026; stagflation risk (Hormuz crisis)",
-    "BREACHED: WTI +38% in 9 days; WPU0672 spike near-certain within 4-8 weeks (Hormuz crisis)",
-    "At risk - was improving pre-crisis; housing delay reduces volume",
-    "Watch - ABI below 50; oil shock adds commercial headwind",
-    "WATCH: Cape of Good Hope rerouting driving freight PPI higher (Hormuz crisis)",
-    "Mixed - Hormuz delays Asian LVT imports (competitive benefit) but disrupts SPC raw material sourcing",
-    "Early stage - Feb 2025 launch"
-  ),
-  category   = c("Residential","Macro","Input Costs","Product Mix",
-                 "Commercial","Logistics","Trade","Product Mix"),
-  weight     = c("HIGH","HIGH","HIGH","HIGH","MED","MED","HIGH","HIGH"),
-  hormuz_flag = c(TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE),
-  hormuz_note = c(
-    "Mortgage rates back above 6% after <6% dip; Fed frozen on hold",
-    "Oil shock re-ignites inflation risk; Fed on hold; stagflation scenario now plausible",
-    "WTI +38% in 9 days; ICIS confirmed global plastics/petrochemical markets tightening",
-    NA_character_,
-    NA_character_,
-    "Hormuz closure + Cape of Good Hope rerouting adds 10-14 days/voyage",
-    "DUAL: delays Asian LVT imports (positive competitively) + disrupts Shaw SPC raw material sourcing from Asia",
-    NA_character_
-  )
+  metric     = c("FRED HOUST (k units SAAR)","FRED FEDFUNDS (%)","FRED WPU0911 YoY % change",
+                 "Est. LVT/SPC as % Shaw revenue","Est. commercial segment YoY growth",
+                 "FRED PCU484121484121 Index","Census HS 3918+5703 import share %",
+                 "Est. SPC category market share %"),
+  current    = c("1,482k","3.58%","+3.5%","~21% (est.)","+3.4% (est.)","155","~23% (est.)","~3.5% (est.)"),
+  threshold  = c(">1,600k","<4.0%","<6.0%",">23%",">3.0%","<175","<27%",">4.0%"),
+  current_v  = c(1482, 3.58, 3.5, 21, 3.4, 155, 23, 3.5),
+  target_v   = c(1600, 4.00, 6.0, 23, 3.0, 175, 27, 4.0),
+  status     = c("yellow","green","green","yellow","green","green","green","yellow"),
+  trend      = c("+7.4% YoY — on recovery track","Achieved in Q4 2025","Stable — normalized",
+                 "+3 pts est. over 12 months","Achieved in 2025","Modest increase from 143",
+                 "Import share holding — tariffs stable","Feb 2025 launch tracking to target"),
+  category   = c("Residential","Macro","Input Costs","Product Mix","Commercial","Logistics","Trade","Product Mix"),
+  weight     = c("HIGH","HIGH","HIGH","HIGH","MED","MED","HIGH","HIGH")
 )
 
 # ── Scenarios ─────────────────────────────────────────────────────────────────
-# build_scenario <- function(rev, em) {
-#   tibble(
-#     year          = c("2024A", "2025A*", "2026E", "2027E", "2028E"),
-#     revenue_m     = rev,
-#     ebitda_margin = em,
-#     ebitda_m      = round(rev * em / 100)
-#   )
-# }
-# SCENARIOS <- list(
-#   base      = build_scenario(c(6200,6520,6820,7160,7530), c(11.0,11.5,12.0,12.5,13.0)),
-#   expansion = build_scenario(c(6200,6520,7100,7780,8460), c(11.0,11.5,12.5,13.2,14.0)),
-#   mild      = build_scenario(c(6200,6520,6460,6360,6550), c(11.0,11.5,10.8,10.2,10.8)),
-#   severe    = build_scenario(c(6200,6520,5980,5540,5820), c(11.0,11.5, 9.5, 8.2, 9.2))
-# )
-# SCENARIO_META <- list(
-#   base = list(label="Base Case", color=PAL$accent,
-#               desc    = "HOUST recovers to ~1.6M by 2026. FEDFUNDS stabilizes at 3.25-3.5%. SPC gains share. ABI stays above 50.",
-#               drivers = "FRED HOUST, FEDFUNDS, MORTGAGE30US, WPU0911"),
-#   expansion = list(label="Expansion", color=PAL$green,
-#                    desc    = "Rate cuts exceed consensus. HOUST reaches 1.8M+. SPC captures 7%+ share. Commercial recovery strong.",
-#                    drivers = "HOUST > 1.75M, MORTGAGE30US < 5.5%, SPC > 7% share"),
-#   mild = list(label="Mild Downturn", color=PAL$amber,
-#               desc    = "Mortgage stickiness persists. HOUST plateaus at 1.4-1.5M. SPC ramp slower. WPU0911 creeps +5% YoY.",
-#               drivers = "MORTGAGE30US > 6.5%, HOUST stalls, WPU0911 +4-6% YoY"),
-#   severe = list(label="Severe Downturn", color=PAL$red,
-#                 desc    = "Fiscal shock re-accelerates rates. HOUST falls below 1.2M. Commercial freezes. Resin spike +15%+.",
-#                 drivers = "HOUST < 1.2M, FEDFUNDS re-spikes > 5.0%, WPU0911 > +15%")
-# )
-
-
-# ⚠ UPDATED March 9, 2026: Three Hormuz Shock scenarios added.
-# ── Scenario revenue/margin inputs ────────────────────────────────────────────
-# ⚠ BASE CASE AND EXPANSION REVISED March 9, 2026 following Hormuz crisis.
-#
-# BASE CASE REVISION RATIONALE:
-#   Pre-crisis: $6,480M (2025E), 11.6% EBITDA margin
-#   Revised:    $6,220M (2025E), 10.9% EBITDA margin
-#   Drivers:
-#   (a) H1 2025 input cost damage is non-recoverable. WPU0672 lags crude 4-8 weeks.
-#       Even under rapid resolution, Q1-Q2 2025 fiber costs are already elevated.
-#       Est. EBITDA margin impact: -60 to -80bps vs. pre-crisis Base Case.
-#   (b) Housing starts recovery delayed 6-12 months. The brief MORTGAGE30US dip
-#       below 6% (first since 2022, Feb 2026) has reversed. Lock-in effect persists.
-#       Volume recovery for residential division is pushed from H1 2025 to H2 2025
-#       at earliest, with 2026 now the first "normal" year.
-#   (c) Fed rate cut timeline extended. 0 cuts now priced for 2026 vs. 2+ pre-crisis.
-#       FEDFUNDS staying at 4.83% through 2026 keeps mortgage rates elevated.
-#   Net: Base Case is still achievable, but requires rapid conflict resolution (<2 wks)
-#   AND assumes Fed resumes cuts by Q3 2026 AND WPU0672 normalizes within the year.
-#   Probability downgraded from ~45% (pre-crisis) to ~15% (post-crisis, March 9 2026).
-#
-# EXPANSION REVISION RATIONALE:
-#   Pre-crisis: $6,720M (2025E), 12.2% EBITDA margin
-#   Revised:    $6,420M (2025E), 11.4% EBITDA margin
-#   Drivers:
-#   (a) H1 2025 damage still applies even in expansion scenario. There is no scenario
-#       in which H1 2025 revenue and margins are unaffected — the input cost spike
-#       is already in motion (ICIS confirmed March 4). The expansion scenario now
-#       reflects a strong H2 2025 + 2026-27 recovery, not a full-year 2025 boom.
-#   (b) Expansion now requires: rapid Hormuz resolution (<2 weeks) AND immediate
-#       Fed pivot AND aggressive cuts through 2026 AND housing boom. This is a very
-#       low probability compound scenario.
-#   (c) The $8,050M 2027E ceiling is retained — if all conditions align, the 2027
-#       recovery can still be strong — but 2025 is irrecoverably impaired.
-#   Probability downgraded from ~15% (pre-crisis) to ~4% (post-crisis, March 9 2026).
+build_scenario <- function(rev, em) {
+  tibble(
+    year          = c("2024A", "2025A*", "2026E", "2027E", "2028E"),
+    revenue_m     = rev,
+    ebitda_margin = em,
+    ebitda_m      = round(rev * em / 100)
+  )
+}
 SCENARIOS <- list(
-  base = build_scenario(
-    # ⚠ REVISED March 9, 2026: 2025E -$260M, 2026E -$270M vs. pre-crisis
-    rev = c(6050, 6200, 6220, 6540, 7040),
-    em  = c(10.8, 11.0, 10.9, 11.4, 12.1)
-  ),
-  expansion = build_scenario(
-    # ⚠ REVISED March 9, 2026: 2025E -$300M vs. pre-crisis; H1 damage non-recoverable
-    rev = c(6050, 6200, 6420, 7180, 7920),
-    em  = c(10.8, 11.0, 11.4, 12.6, 13.5)
-  ),
-  mild = build_scenario(
-    rev = c(6050, 6200, 6150, 6080, 6280),
-    em  = c(10.8, 11.0, 10.4, 10.0, 10.6)
-  ),
-  severe = build_scenario(
-    rev = c(6050, 6200, 5760, 5380, 5640),
-    em  = c(10.8, 11.0,  9.2,  8.0,  9.0)
-  ),
-  hormuz_short = build_scenario(
-    rev = c(6050, 6200, 6180, 6420, 6900),
-    em  = c(10.8, 11.0, 10.8, 11.4, 12.1)
-  ),
-  hormuz_extended = build_scenario(
-    rev = c(6050, 6200, 5900, 6100, 6600),
-    em  = c(10.8, 11.0,  9.6, 10.2, 11.2)
-  ),
-  hormuz_prolonged = build_scenario(
-    rev = c(6050, 6200, 5500, 5700, 6200),
-    em  = c(10.8, 11.0,  8.4,  9.0, 10.4)
-  )
+  base      = build_scenario(c(6200,6520,6820,7160,7530), c(11.0,11.5,12.0,12.5,13.0)),
+  expansion = build_scenario(c(6200,6520,7100,7780,8460), c(11.0,11.5,12.5,13.2,14.0)),
+  mild      = build_scenario(c(6200,6520,6460,6360,6550), c(11.0,11.5,10.8,10.2,10.8)),
+  severe    = build_scenario(c(6200,6520,5980,5540,5820), c(11.0,11.5, 9.5, 8.2, 9.2))
 )
-
-# ⚠ UPDATED March 9, 2026: Hormuz Shock scenarios added.
-# hormuz_short    = conflict resolves <2 weeks; moderate input cost impact
-# hormuz_extended = 4-8 week disruption; significant margin compression
-# hormuz_prolonged = 3+ months; severe stagflation scenario
 SCENARIO_META <- list(
-  # ── Scenario probability weights ──────────────────────────────────────────────
-  # prob_pre   = analyst probability BEFORE March 2, 2026 Hormuz crisis
-  # prob_post  = analyst probability AS OF March 9, 2026 (conflict day 9)
-  # These are analyst judgements, not statistically derived. They reflect:
-  #   (a) Which macro assumptions are currently broken (see Assumption Monitor)
-  #   (b) Historical base rates for Middle East conflict durations
-  #   (c) Current diplomatic signals (no ceasefire; Trump demands unconditional surrender)
-  # Sum of prob_post across all scenarios should be ~100%.
-  base = list(
-    label     = "Base Case",  color = PAL$accent,
-    desc      = "REVISED March 9, 2026. Requires rapid Hormuz resolution (<2 weeks) AND Fed resumes cuts by Q3 2026. H1 2025 input cost damage ($260M revenue, -70bps EBITDA margin) is non-recoverable even in this scenario. 2025E revised from $6,480M to $6,220M.",
-    drivers   = "FRED HOUST, FEDFUNDS, WPU0672, MORTGAGE30US",
-    is_hormuz = FALSE,
-    prob_pre  = 45,
-    prob_post = 15,
-    prob_change = "DOWN from 45% — three load-bearing assumptions simultaneously broken"
-  ),
-  expansion = list(
-    label     = "Expansion",  color = PAL$green,
-    desc      = "REVISED March 9, 2026. Requires: rapid Hormuz resolution + immediate Fed pivot + housing boom. H1 2025 still impaired (-$300M vs. pre-crisis Expansion). 2025E revised from $6,720M to $6,420M. Very low probability compound scenario.",
-    drivers   = "Rapid Hormuz resolution; MORTGAGE30US < 5.5%; HOUST > 1.75M",
-    is_hormuz = FALSE,
-    prob_pre  = 15,
-    prob_post = 4,
-    prob_change = "DOWN from 15% — requires conditions currently at maximum distance from reality"
-  ),
-  mild = list(
-    label     = "Mild Downturn",  color = PAL$amber,
-    desc      = "Sticky rates, HOUST stalls. Does not fully capture Hormuz input cost shock — see Hormuz Short for better analog. Probability slightly reduced as Hormuz scenarios absorb much of this distribution.",
-    drivers   = "FEDFUNDS > 4.5%, HOUST stalls, WPU0672 +4-6% YoY",
-    is_hormuz = FALSE,
-    prob_pre  = 25,
-    prob_post = 9,
-    prob_change = "DOWN — Hormuz Short/Extended scenarios absorb this distribution"
-  ),
-  severe = list(
-    label     = "Severe Downturn",  color = PAL$red,
-    desc      = "Domestic fiscal shock scenario. Distinct from Hormuz — this is a rate re-spike + recession event. Probability unchanged; Hormuz adds tail risk of combined scenario.",
-    drivers   = "HOUST < 1.2M, FEDFUNDS re-spikes, WPU0672 > +15%",
-    is_hormuz = FALSE,
-    prob_pre  = 15,
-    prob_post = 5,
-    prob_change = "STABLE-DOWN — Hormuz Prolonged absorbs much of this tail"
-  ),
-  hormuz_short = list(
-    label     = "Hormuz: Short (<2wk)",  color = "#e87040",
-    desc      = "ACTIVE SCENARIO (Mar 9 2026): Conflict resolves within 2 weeks. WPU0672 +4-6% YoY (H1 damage non-recoverable); freight costs rise modestly; Fed stays on hold through mid-2026; mortgage stays above 6%. Most optimistic Hormuz outcome.",
-    drivers   = "WTI returns to $70-75; Hormuz transits resume ~Mar 20; FEDFUNDS 4.83% through H1 2026",
-    is_hormuz = TRUE,
-    prob_pre  = 0,
-    prob_post = 22,
-    prob_change = "NEW — most likely resolution path given diplomatic back-channels reported"
-  ),
-  hormuz_extended = list(
-    label     = "Hormuz: Extended (4-8wk)",  color = "#d04040",
-    desc      = "ACTIVE SCENARIO — MODAL CASE (Mar 9 2026): 4-8 week disruption. WPU0672 +8-12% YoY; freight PPI re-escalates toward 160; Fed frozen through 2026; mortgage rates sustain above 6.5%; HOUST recovery delayed 9-12 months. Consistent with historical Middle East conflict durations.",
-    drivers   = "WTI sustains $85-100; Hormuz restricted 4-8 weeks; FEDFUNDS held through 2026",
-    is_hormuz = TRUE,
-    prob_pre  = 0,
-    prob_post = 37,
-    prob_change = "NEW — modal scenario based on historical conflict duration base rates"
-  ),
-  hormuz_prolonged = list(
-    label     = "Hormuz: Prolonged (3+mo)",  color = "#a02020",
-    desc      = "ACTIVE SCENARIO (Mar 9 2026): 3+ month disruption. WPU0672 +15-25% YoY; HOUST drops below 1.2M; Fed cannot cut amid sustained energy-driven inflation; freight PPI approaches 175; SPC raw material supply disrupted; stagflation risk.",
-    drivers   = "Brent > $100 sustained; HOUST < 1.2M; WPU0672 > +15% YoY; mortgage > 7%",
-    is_hormuz = TRUE,
-    prob_pre  = 0,
-    prob_post = 8,
-    prob_change = "NEW — tail risk scenario; probability rises if ceasefire talks collapse"
-  )
+  base = list(label="Base Case", color=PAL$accent,
+              desc    = "HOUST recovers to ~1.6M by 2026. FEDFUNDS stabilizes at 3.25-3.5%. SPC gains share. ABI stays above 50.",
+              drivers = "FRED HOUST, FEDFUNDS, MORTGAGE30US, WPU0911"),
+  expansion = list(label="Expansion", color=PAL$green,
+                   desc    = "Rate cuts exceed consensus. HOUST reaches 1.8M+. SPC captures 7%+ share. Commercial recovery strong.",
+                   drivers = "HOUST > 1.75M, MORTGAGE30US < 5.5%, SPC > 7% share"),
+  mild = list(label="Mild Downturn", color=PAL$amber,
+              desc    = "Mortgage stickiness persists. HOUST plateaus at 1.4-1.5M. SPC ramp slower. WPU0911 creeps +5% YoY.",
+              drivers = "MORTGAGE30US > 6.5%, HOUST stalls, WPU0911 +4-6% YoY"),
+  severe = list(label="Severe Downturn", color=PAL$red,
+                desc    = "Fiscal shock re-accelerates rates. HOUST falls below 1.2M. Commercial freezes. Resin spike +15%+.",
+                drivers = "HOUST < 1.2M, FEDFUNDS re-spikes > 5.0%, WPU0911 > +15%")
 )
-
-# ── Scenario probability summary (for probability chart in UI) ────────────────
-SCENARIO_PROBS <- tibble(
-  scenario    = c("Expansion", "Base Case", "Mild Downturn", "Severe Downturn",
-                  "Hormuz Short", "Hormuz Extended", "Hormuz Prolonged"),
-  label_short = c("Expansion", "Base Case", "Mild", "Severe",
-                  "H: Short", "H: Extended", "H: Prolonged"),
-  prob_pre    = c(15, 45, 25, 15, 0, 0, 0),
-  prob_post   = c( 4, 15,  9,  5, 22, 37, 8),
-  color       = c(PAL$green, PAL$accent, PAL$amber, PAL$red, "#e87040", "#d04040", "#a02020"),
-  is_hormuz   = c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE)
-)
-
-# ── Live Fact Base (static fallback values) ───────────────────────────────────
-FACT_BASE_STATIC <- tibble(
-  series   = c(
-    "Housing Starts: Total (HOUST)",
-    "30-Yr Fixed Mortgage Rate (MORTGAGE30US)",
-    "Federal Funds Effective Rate (FEDFUNDS)",
-    "Total Construction Spending (TTLCONS)",
-    "PPI: Plastics Products (WPU0672)",
-    "PPI: Long-Dist. Freight Trucking (PCU484121484121)",
-    "CPI: All Urban Consumers (CPIAUCSL)",
-    "Mohawk Industries (MHK) — 52-wk",
-    "Interface Inc. (TILE) — 52-wk"
-  ),
-  source   = c("FRED","FRED","FRED","FRED","FRED","FRED","FRED","Yahoo Finance","Yahoo Finance"),
-  category = c("Residential","Macro","Macro","Commercial","Input Costs",
-               "Logistics","Macro","Competitive","Competitive"),
-  value    = c("1,380k SAAR","6.79%","4.83%","$2,078B ann.",
-               "201.3","143.0","316.4","~$108","~$13.20"),
-  change   = c("+1.9% QoQ","–0.15% MoM","–0.50% from peak",
-               "+0.8% QoQ","flat","–3% from 2022 peak","+0.3% MoM",
-               "–8% YTD est.","–6% YTD est."),
-  period   = c("Q4 2024","Q4 2024 avg","Q4 2024 avg","Q3 2024",
-               "Q3 2024","Q3 2024","Dec 2024","YTD early 2025","YTD early 2025"),
-  status   = c("yellow","yellow","yellow","yellow","green","green","green","yellow","yellow"),
-  note     = c("Live via FRED when key present","Live via FRED","Live via FRED",
-               "Live via FRED","Live via FRED","Live via FRED","Live via FRED",
-               "Manual refresh — not via FRED","Manual refresh — not via FRED")
-)
-
 
 # ── Live Fact Base (static fallback) ─────────────────────────────────────────
 # Competitor rows updated to FY2024 10-K figures (filed Feb 2025).
@@ -1061,103 +825,6 @@ MACRO_SIGNALS <- tibble(
   ),
   status = c("yellow","yellow","green","green","yellow","red")
 )
-
-
-
-# ── Geopolitical Risk Data — Hormuz Crisis (added March 9, 2026) ─────────────
-# Source: Bloomberg, CNBC, Kpler, ICIS, Lloyd's List, Congressional Research Service
-# All data points are from published, attributed sources.
-# This block should be refreshed manually as the situation evolves.
-
-HORMUZ_STATUS <- list(
-  last_updated    = "March 9, 2026",
-  conflict_day    = 9,
-  status          = "ACTIVE — No ceasefire. IRGC declared Strait closed March 2.",
-  severity        = "CRITICAL",
-  # Source: MarineTraffic / Kpler vessel tracking data
-  transit_drop_pct = 90,
-  # Source: Kpler data cited by Euronews, March 4, 2026
-  tankers_stranded = 200,
-  vessels_stranded = 150,
-  # Source: CNBC, March 6 — WTI futures weekly gain, largest since 1983
-  wti_pre_conflict = 65,
-  wti_current      = 91,
-  wti_weekly_gain_pct = 35.6,
-  # Source: Barclays, UBS analyst notes cited in CNBC March 1
-  brent_scenario_low  = 82,
-  brent_scenario_mid  = 100,
-  brent_scenario_high = 120,
-  # Source: Qatar energy minister, Financial Times, March 6
-  brent_tail_risk     = 150,
-  # Source: ICIS, Hydrocarbon Engineering, March 4, 2026
-  icis_plastics_status = "Hormuz restrictions already reducing availability and raising feedstock costs globally",
-  # Source: CBS News / GasBuddy, March 5
-  gas_price_increase_1wk = 0.26,
-  gas_price_current = 3.25,
-  # Source: Marsh insurance broker, CNBC, March 4
-  war_risk_insurance_pct_before = 0.25,
-  war_risk_insurance_pct_current = 1.25,
-  # Source: Yahoo Finance / TheStreet, March 6-7
-  fed_cuts_priced_2026_before = 2,
-  fed_cuts_priced_2026_current = 0,
-  # Source: CNN, March 5; CBS News, March 5
-  mortgage_rate_before = 5.98,  # briefly dipped below 6% — first since 2022
-  mortgage_rate_current = 6.05,
-  diplomatic_status = "Iranian operatives reportedly reached out; no formal talks confirmed. Trump demands unconditional surrender.",
-  key_events = list(
-    list(date="Feb 28", event="US-Israel launch Operation Epic Fury. Khamenei killed."),
-    list(date="Mar 1",  event="Iran retaliatory strikes on US bases, Gulf states. Tanker traffic begins falling."),
-    list(date="Mar 2",  event="IRGC declares Strait closed. Maersk, MSC, Hapag-Lloyd, CMA CGM suspend transits."),
-    list(date="Mar 3",  event="Qatar halts LNG exports. Saudi Arabia suspends largest refinery. Iraq output -60%."),
-    list(date="Mar 4",  event="ICIS confirms global plastics/petrochemical market tightening. Brent ~$82."),
-    list(date="Mar 6",  event="WTI records largest weekly gain in futures history (+35.6%). Brent ~$92."),
-    list(date="Mar 8",  event="Brent hits $100+. Oil at highest since 2022. Fed expected to hold at Mar 18-19 meeting."),
-    list(date="Mar 9",  event="Conflict day 9. No ceasefire. Iranian contact with intermediaries unconfirmed.")
-  )
-)
-
-# Transmission channels — direct mapping from Hormuz to Shaw P&L
-HORMUZ_TRANSMISSION <- tibble(
-  channel = c(
-    "Crude oil → carpet fiber input costs",
-    "Freight rerouting → distribution costs",
-    "Fed paralysis → mortgage rate stickiness",
-    "Mortgage stickiness → housing starts recovery delayed",
-    "Shipping suspension → Asian LVT import delay",
-    "Consumer confidence shock → discretionary deferral",
-    "Insurance costs → supply chain friction"
-  ),
-  severity = c("CRITICAL","HIGH","HIGH","HIGH","MIXED","MODERATE","MODERATE"),
-  severity_color = c("red","red","red","red","amber","amber","amber"),
-  mechanism = c(
-    "WTI +38% in 9 days. Nylon/PET/PP fiber is petroleum-derived. WPU0672 lags crude by 4-8 weeks. Breach of +6% YoY threshold near-certain in any scenario except conflict resolution within 2 weeks.",
-    "Cape of Good Hope rerouting adds 10-14 days per voyage. Major carriers suspended Hormuz transits. FRED PCU484121484121 (freight trucking PPI) will rise. 2022 freight crisis precedent: PCU484121484121 reached 175.",
-    "Oil shock re-ignites inflation fears. Fed on hold indefinitely — 0 cuts now priced for 2026 (was 2+). Fed meeting March 18-19 expected to hold at 4.83%. Incoming chair Warsh may push cuts regardless.",
-    "FRED MORTGAGE30US bounced from 5.98% (briefly below 6% for first time since 2022) back above 6.05%. Lock-in effect persists. HOUST recovery to 1.6M target pushed right by 6-12 months.",
-    "DUAL EFFECT: Positive — delays competitor Asian LVT imports, temporarily improving Shaw domestic competitive position. Negative — disrupts Shaw's own SPC raw material supply from Asia (core, wear-layer). Net uncertain; depends on duration.",
-    "Gas prices up $0.26/gal in one week (GasBuddy). Consumer confidence falls. Home improvement and flooring discretionary purchases deferred in near term.",
-    "War risk insurance surged from 0.25% to 1.25% of vessel value (Marsh, March 4). Makes shipping economically unviable without government backstop. Trump DFC insurance program announced but markets unimpressed."
-  ),
-  fred_monitor = c(
-    "FRED DCOILWTICO (WTI crude) — new addition; FRED WPU0672 with 4-8wk lag",
-    "FRED PCU484121484121 — watch for reversal of 2022-2024 normalization trend",
-    "FRED FEDFUNDS; CME FedWatch tool for cut probability",
-    "FRED MORTGAGE30US weekly; FRED HOUST monthly",
-    "Census HS 3918 monthly imports — 6-week data lag",
-    "Conference Board Consumer Confidence Index; FRED PCE personal consumption",
-    "Non-FRED: Marsh war risk insurance rates; Lloyd's List Intelligence vessel tracking"
-  ),
-  resolution_signal = c(
-    "WTI returns to $70-75 range; Brent below $80",
-    "Hormuz transits resume; AIS signals normalize in Strait",
-    "Fed signals rate cut; market prices 1+ cuts for 2026",
-    "MORTGAGE30US falls back below 6.5%; HOUST prints above 1.45M",
-    "Census HS 3918 import volumes hold steady or recover",
-    "Consumer confidence stabilizes; gas prices fall below $3.10",
-    "Insurance premiums fall back below 0.5%; P&I coverage restored"
-  )
-)
-
 
 # ── Mekko / Marimekko Market Structure ───────────────────────────────────────
 MEKKO_DATA <- tibble(
