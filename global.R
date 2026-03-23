@@ -133,7 +133,11 @@ shaw_theme <- bs_theme(
 
 # ── Login Credentials ─────────────────────────────────────────────────────────
 VALID_USERS <- list(
-  list(user = "demo", pass = "demo", role = "Demo")
+  list(
+    # user = "demo", pass = "demo", role = "Demo",
+    user = "Will", pass = "Emm@2002", role = "Demo"
+    
+    )
 )
 
 # ── FRED Series Registry ──────────────────────────────────────────────────────
@@ -175,6 +179,30 @@ FRED_SERIES <- list(
 
 
 # ── FRED Fetch ────────────────────────────────────────────────────────────────
+fetch_wti <- function(start = "2019-01-01") {
+  
+  tryCatch({
+    
+    fredr(
+      series_id = "DCOILWTICO",
+      observation_start = as.Date(start),
+      frequency = "d"
+    ) |>
+      select(date, value) |>
+      rename(wti_crude = value) |>
+      mutate(date = as.Date(date)) |>
+      filter(!is.na(wti_crude))
+    
+  }, error = function(e) {
+    
+    message("WTI fetch failed: ", conditionMessage(e))
+    NULL
+    
+  })
+  
+}
+
+
 fetch_one_series <- function(series_id, start = "2019-01-01", freq = "m", agg = "avg") {
   tryCatch({
     httr::with_config(httr::timeout(45), {
@@ -183,7 +211,8 @@ fetch_one_series <- function(series_id, start = "2019-01-01", freq = "m", agg = 
                   frequency          = freq,
                   aggregation_method = agg)
       df |> select(date, value) |> filter(!is.na(value)) |>
-        mutate(date = floor_date(as.Date(date), "month"))
+        mutate(date = as.Date(date))
+        # mutate(date = floor_date(as.Date(date), "month"))
     })
   }, error = function(e) {
     message("fredr failed for ", series_id, ": ", conditionMessage(e))

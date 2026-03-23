@@ -105,11 +105,11 @@ ui <- fluidPage(
               
               div(class = "mb-3",
                   tags$label("Username", class = "login-label"),
-                  textInput("login_user", label = NULL, placeholder = "Username", width = "100%",value =  "demo")
+                  textInput("login_user", label = NULL, placeholder = "Username", width = "100%",value =  "")
               ),
               div(class = "mb-4",
                   tags$label("Password", class = "login-label"),
-                  passwordInput("login_pass", label = NULL, placeholder = "Password", width = "100%",value = "demo")
+                  passwordInput("login_pass", label = NULL, placeholder = "Password", width = "100%",value = "")
               ),
               
               div(id    = "login_error",
@@ -128,7 +128,7 @@ ui <- fluidPage(
               div(style = paste0("margin-top:12px; padding:10px 14px; background:rgba(43,123,214,0.07);",
                                  " border:1px solid rgba(43,123,214,0.2); border-radius:3px;"),
                   tags$p(style = paste0("font-size:10px; color:", PAL$muted, "; margin:0; line-height:1.6;"),
-                         tags$span(style = paste0("color:", PAL$blue, ";"), "\u2139 Limited demo access. "),
+                         tags$span(style = paste0("color:", PAL$blue, ";"), "\u2139 **NEW INSIGHT AVAILABLE**. dContact willshelley404@gmail.com for full access. "),
                          "This portal is provided for exploratory and analytical use only. ",
                          "All Shaw revenue, margin, and financial estimates are analyst-derived — not reported figures. ",
                          "Not for distribution."
@@ -137,7 +137,7 @@ ui <- fluidPage(
               
               tags$p(style = paste0("font-size:10px; text-align:center; color:", PAL$muted,
                                     "; margin-top:10px;"),
-                     "Access: demo / demo")
+                     "Access: Contact willshelley404@gmail.com")
           )
       )
   ),
